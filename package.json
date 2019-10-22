@@ -1,0 +1,74 @@
+{
+  "name": "react-viewport-list",
+  "version": "0.1.0",
+  "description": "Virtual list without extra DOM nodes and absolute positioning",
+  "keywords": [
+    "react",
+    "virtual",
+    "list",
+    "virualized",
+    "viewport"
+  ],
+  "homepage": "https://oleggrishechkin.github.io/react-viewport-list",
+  "license": "MIT",
+  "author": {
+    "name": "Oleg Grishechkin",
+    "email": "oleggrishechkin@gmail.com",
+    "url": "https://github.com/oleggrishechkin"
+  },
+  "main": "src/ViewPortList.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oleggrishechkin/react-viewport-list"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "serve": "react-scripts build && serve -s build",
+    "lint": "eslint .",
+    "lint-fix": "eslint --fix .",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
+  },
+  "devDependencies": {
+    "eslint-config-prettier-og": "^1.0.0",
+    "gh-pages": "^2.1.1",
+    "husky": "^3.0.9",
+    "lint-staged": "^9.4.2",
+    "react": "^16.10.2",
+    "react-dom": "^16.10.2",
+    "react-scripts": "3.2.0",
+    "serve": "^11.2.0"
+  },
+  "peerDependencies": {
+    "react": ">=16.8.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "eslintConfig": {
+    "extends": "prettier-og"
+  },
+  "prettier": "eslint-config-prettier-og/prettier.config.js",
+  "lint-staged": {
+    "*.(js|jsx)": [
+      "eslint"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  }
+}
