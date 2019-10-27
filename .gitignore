@@ -22,4 +22,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# webstorm
 .idea
+
+# vs code
+.vscode
+
+# build
+/dist
+/lib

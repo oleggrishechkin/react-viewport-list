@@ -1,6 +1,6 @@
 {
   "name": "react-viewport-list",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Virtual list without extra DOM nodes and absolute positioning",
   "keywords": [
     "react",
@@ -16,23 +16,30 @@
     "email": "oleggrishechkin@gmail.com",
     "url": "https://github.com/oleggrishechkin"
   },
-  "main": "src/ViewPortList.js",
+  "files": [
+    "lib/ViewPortList.js"
+  ],
+  "main": "lib/ViewPortList.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/oleggrishechkin/react-viewport-list"
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "cross-env NODE_ENV=production react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "serve": "react-scripts build && serve -s build",
     "lint": "eslint .",
     "lint-fix": "eslint --fix .",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "deploy": "gh-pages -d build",
+    "prepublish": "rimraf lib && cross-env NODE_ENV=production babel src/ViewPortList.js -d lib"
   },
   "devDependencies": {
+    "@babel/cli": "^7.6.4",
+    "@babel/core": "^7.6.4",
+    "cross-env": "^6.0.3",
     "eslint-config-prettier-og": "^1.0.0",
     "gh-pages": "^2.1.1",
     "husky": "^3.0.9",
@@ -40,6 +47,7 @@
     "react": "^16.10.2",
     "react-dom": "^16.10.2",
     "react-scripts": "3.2.0",
+    "rimraf": "^3.0.0",
     "serve": "^11.2.0"
   },
   "peerDependencies": {
@@ -55,6 +63,11 @@
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
+    ]
+  },
+  "babel": {
+    "presets": [
+      "react-app"
     ]
   },
   "eslintConfig": {
