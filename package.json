@@ -1,6 +1,6 @@
 {
   "name": "react-viewport-list",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Virtual list without extra DOM nodes and absolute positioning",
   "keywords": [
     "react",
@@ -17,38 +17,44 @@
     "url": "https://github.com/oleggrishechkin"
   },
   "files": [
-    "lib/ViewPortList.js"
+    "lib/index.js"
   ],
-  "main": "lib/ViewPortList.js",
+  "main": "lib/index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/oleggrishechkin/react-viewport-list"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "cross-env NODE_ENV=production react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "serve": "react-scripts build && serve -s build",
+    "start": "cross-env NODE_ENV=development webpack-dev-server --mode development --hot",
+    "build": "rimraf dist && cross-env NODE_ENV=production webpack --mode production",
+    "test": "jest",
     "lint": "eslint .",
     "lint-fix": "eslint --fix .",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build",
-    "prepublish": "rimraf lib && cross-env NODE_ENV=production babel src/ViewPortList.js -d lib"
+    "deploy": "gh-pages -d dist",
+    "prepublish": "rimraf lib && babel src -d lib"
   },
   "devDependencies": {
     "@babel/cli": "^7.6.4",
     "@babel/core": "^7.6.4",
+    "@babel/preset-env": "^7.6.3",
+    "@babel/preset-react": "^7.6.3",
+    "babel-loader": "^8.0.6",
     "cross-env": "^6.0.3",
+    "css-loader": "^3.2.0",
     "eslint-config-prettier-og": "^1.0.0",
     "gh-pages": "^2.1.1",
+    "html-webpack-plugin": "^3.2.0",
     "husky": "^3.0.9",
+    "jest": "^24.9.0",
     "lint-staged": "^9.4.2",
+    "mini-css-extract-plugin": "^0.8.0",
     "react": "^16.10.2",
     "react-dom": "^16.10.2",
-    "react-scripts": "3.2.0",
     "rimraf": "^3.0.0",
-    "serve": "^11.2.0"
+    "webpack": "^4.41.2",
+    "webpack-cli": "^3.3.10",
+    "webpack-dev-server": "^3.9.0"
   },
   "peerDependencies": {
     "react": ">=16.8.0"
@@ -63,11 +69,6 @@
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
-    ]
-  },
-  "babel": {
-    "presets": [
-      "react-app"
     ]
   },
   "eslintConfig": {
