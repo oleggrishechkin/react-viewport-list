@@ -1,78 +1,135 @@
-import React, { useMemo, useRef, useEffect, useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo, Fragment } from 'react';
 
-const ViewPortList = ({
-    viewPortRef = React.createRef(),
-    elementsCount = 0,
-    elementHeight = 0,
-    margin = 0,
-    children = null
-}) => {
-    const ref = useRef(null);
-    const [[startIndex, endIndex], setIndexes] = useState([0, 0]);
-    const elementHeightWithMargin = elementHeight + margin;
+const ViewPortList = ({ listLength = 0, itemMinHeight = 1, margin = 0, children = null, scrollToIndex = -1 }) => {
+    const itemMinHeightWithMargin = itemMinHeight + margin;
+    const maxIndex = listLength - 1;
+    const [startIndex, setStartIndex] = useState(0);
+    const [windowHeight, setWindowHeight] = useState(document.documentElement.clientHeight);
+    const maxVisibleItemsCount = Math.ceil(windowHeight / itemMinHeight) * 2;
+    const normalizedStartIndex = Math.min(startIndex, Math.max(maxIndex - maxVisibleItemsCount, 0));
+    const endIndex = Math.min(normalizedStartIndex + maxVisibleItemsCount, maxIndex);
+    const startRef = useRef(null);
+    const scrollRef = useRef(null);
+    const variables = useRef({
+        scrolledToIndex: -1,
+        inc: 1,
+        dec: 1,
+        stepFunc: () => {}
+    });
 
-    useEffect(() => {
-        let frameId;
-        const frame = () => {
-            if (ref.current && viewPortRef.current) {
-                setIndexes((currentIndexes) => {
-                    const viewPortRect = viewPortRef.current.getBoundingClientRect();
-                    const minElementsCount = Math.min(
-                        Math.ceil(viewPortRect.height / elementHeightWithMargin),
-                        elementsCount
-                    );
-                    const nextStartIndex = Math.min(
-                        Math.max(
-                            Math.floor(
-                                (viewPortRect.top -
-                                    ref.current.getBoundingClientRect().top +
-                                    currentIndexes[0] * elementHeightWithMargin) /
-                                    elementHeightWithMargin
-                            ),
-                            0
-                        ),
-                        elementsCount - minElementsCount
-                    );
-                    const nextEndIndex = Math.min(nextStartIndex + minElementsCount, elementsCount - 1);
+    variables.current.stepFunc = () => {
+        if (!startRef.current) {
+            variables.current.inc = 1;
+            variables.current.dec = 1;
 
-                    return nextStartIndex === currentIndexes[0] && nextEndIndex === currentIndexes[1]
-                        ? currentIndexes
-                        : [nextStartIndex, nextEndIndex];
-                });
+            return;
+        }
+
+        const startRefRect = startRef.current.getBoundingClientRect();
+
+        if (startIndex > Math.max(maxIndex - maxVisibleItemsCount)) {
+            setStartIndex(Math.max(maxIndex - maxVisibleItemsCount, 0));
+            variables.current.inc = 1;
+            variables.current.dec = 1;
+
+            return;
+        }
+
+        if (scrollToIndex !== variables.current.scrolledToIndex) {
+            variables.current.inc = 1;
+            variables.current.dec = 1;
+
+            if (scrollToIndex < 0 || scrollToIndex > maxIndex) {
+                variables.current.scrolledToIndex = scrollToIndex;
+
+                return;
             }
 
+            if (scrollToIndex >= startIndex && scrollToIndex <= endIndex) {
+                (scrollRef.current || startRef.current).scrollIntoView();
+                variables.current.scrolledToIndex = scrollToIndex;
+
+                return;
+            }
+
+            setStartIndex(
+                Math.min(
+                    Math.max(scrollToIndex - Math.floor(maxVisibleItemsCount / 2), 0),
+                    Math.max(maxIndex - maxVisibleItemsCount, 0)
+                )
+            );
+
+            return;
+        }
+
+        if (startRefRect.bottom < -windowHeight) {
+            setStartIndex(Math.min(startIndex + variables.current.inc, Math.max(maxIndex - maxVisibleItemsCount, 0)));
+            variables.current.inc = variables.current.inc * 2;
+            variables.current.dec = 1;
+
+            return;
+        }
+
+        if (startRefRect.top > -windowHeight) {
+            setStartIndex(Math.max(startIndex - variables.current.dec, 0));
+            variables.current.inc = 1;
+            variables.current.dec = variables.current.dec * 2;
+
+            return;
+        }
+
+        variables.current.inc = 1;
+        variables.current.dec = 1;
+    };
+
+    useEffect(() => {
+        const onResize = () => {
+            setWindowHeight(document.documentElement.clientHeight);
+        };
+
+        window.addEventListener('resize', onResize);
+
+        return () => window.removeEventListener('resize', onResize);
+    }, [itemMinHeight]);
+
+    useEffect(() => {
+        let frameId = 0;
+        const frame = () => {
             frameId = requestAnimationFrame(frame);
+            variables.current.stepFunc();
         };
 
         frame();
 
         return () => cancelAnimationFrame(frameId);
-    }, [elementHeightWithMargin, elementsCount, viewPortRef]);
+    }, []);
 
-    return useMemo(() => {
-        if (!elementsCount || !children) {
+    const items = useMemo(() => {
+        if (!children) {
             return false;
         }
 
         const result = [];
 
-        console.log(startIndex, endIndex);
-        for (let index = startIndex; index <= endIndex; ++index) {
+        for (let index = normalizedStartIndex; index <= endIndex; ++index) {
             result.push(
                 children({
-                    innerRef: index === startIndex ? ref : undefined,
+                    innerRef:
+                        index === normalizedStartIndex ? startRef : index === scrollToIndex ? scrollRef : undefined,
                     index,
                     style: {
-                        marginTop: index === startIndex ? startIndex * elementHeightWithMargin : undefined,
-                        marginBottom:
-                            index === endIndex ? (elementsCount - 1 - endIndex) * elementHeightWithMargin : margin
+                        marginTop:
+                            index === normalizedStartIndex ? normalizedStartIndex * itemMinHeightWithMargin : undefined,
+                        marginBottom: index === endIndex ? (maxIndex - endIndex) * itemMinHeightWithMargin : margin
                     }
                 })
             );
         }
 
         return result;
-    }, [children, elementHeightWithMargin, elementsCount, endIndex, margin, startIndex]);
+    }, [children, endIndex, itemMinHeightWithMargin, margin, maxIndex, normalizedStartIndex, scrollToIndex]);
+
+    return <Fragment>{items}</Fragment>;
 };
 
-export default React.memo(ViewPortList);
+export default ViewPortList;

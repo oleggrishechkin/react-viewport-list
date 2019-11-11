@@ -1,7 +1,7 @@
 {
   "name": "react-viewport-list",
-  "version": "0.1.2",
-  "description": "Virtual list without extra DOM nodes and absolute positioning",
+  "version": "1.0.0",
+  "description": "Delicious virtual list with zero dependencies",
   "keywords": [
     "react",
     "virtual",
@@ -48,6 +48,7 @@
     "husky": "^3.0.9",
     "jest": "^24.9.0",
     "lint-staged": "^9.4.2",
+    "lorem-ipsum": "^2.0.3",
     "mini-css-extract-plugin": "^0.8.0",
     "react": "^16.10.2",
     "react-dom": "^16.10.2",
