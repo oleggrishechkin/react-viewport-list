@@ -1,6 +1,6 @@
 {
   "name": "react-viewport-list",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Delicious virtual list with zero dependencies",
   "keywords": [
     "react",
@@ -35,15 +35,15 @@
     "prepublish": "rimraf lib && babel src -d lib"
   },
   "devDependencies": {
-    "@babel/cli": "^7.6.4",
-    "@babel/core": "^7.6.4",
-    "@babel/preset-env": "^7.6.3",
+    "@babel/cli": "^7.7.5",
+    "@babel/core": "^7.7.5",
+    "@babel/preset-env": "^7.7.6",
     "@babel/preset-react": "^7.6.3",
     "babel-loader": "^8.0.6",
     "cross-env": "^6.0.3",
-    "css-loader": "^3.2.0",
+    "css-loader": "^3.3.0",
     "eslint-config-prettier-og": "^1.0.0",
-    "gh-pages": "^2.1.1",
+    "gh-pages": "2.1.1",
     "html-webpack-plugin": "^3.2.0",
     "husky": "^3.0.9",
     "jest": "^24.9.0",
@@ -53,6 +53,7 @@
     "react": "^16.10.2",
     "react-dom": "^16.10.2",
     "rimraf": "^3.0.0",
+    "terser-webpack-plugin": "^2.2.3",
     "webpack": "^4.41.2",
     "webpack-cli": "^3.3.10",
     "webpack-dev-server": "^3.9.0"
