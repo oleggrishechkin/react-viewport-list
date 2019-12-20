@@ -19,50 +19,57 @@ See 100k list [demo](https://oleggrishechkin.github.io/react-viewport-list)
 
 ## Getting Started
 
-### Install:
+### Installation:
 
 ```shell script
 npm install --save react-viewport-list
 ```
 
-### Import:
+### Importing:
 
 ```javascript
 import ViewPortList from 'react-viewport-list';
 ```
 
-### Use:
+### Usage:
 
 ```javascript
-<div className="list">
-    {/*Some JSX*/}
-    <ViewPortList
-        listLength={items.length}
-        itemMinHeight={ITEM_HEIGHT}
-        margin={ITEM_MARGIN}
-    >
+<ul>
+    <ViewPortList itemMinHeight={40} margin={8}>
         {({ innerRef, index, style }) => (
-            <Item
-                key={items[index].id}
-                innerRef={innerRef}
-                className="item"
-                style={style}
-                item={items[index]}
-            />
-        )} 
+            <li ref={innerRef} key={index} style={style}>
+                {items[index].title}
+            </li>
+        )}
     </ViewPortList>
-    {/*Some JSX*/}
-</div>
+</ul>
 ```
 
 ## Props
 
-name             |type                                |default|decription
------------------|------------------------------------|-------|-----------
-**listLength**   |number                              |0      |items count
-**itemMinHeight**|number                              |1      |min item height in px
-**margin**       |number                              |0      |margin between items in px
-**children**     |({ innerRef, index, style }) => jsx`|null   |item render function
-**scrollToIndex**|number                              |-1     |item index for scrollIntoView
+name             |type                               |default|description
+-----------------|-----------------------------------|-------|-----------
+**listLength**   |number                             |0      |items count
+**itemMinHeight**|number                             |1      |min item height in px
+**margin**       |number                             |0      |margin between items in px
+**fixed**        |bool                               |false  |all items has equal fixed height
+**overscan**     |number                             |10     |extra items on top and bottom
+**children**     |({ innerRef, index, style }) => jsx|null   |item render function
+**scrollToIndex**|number                             |-1     |item index for scrollIntoView
 
-*sorting by [react-sortable-hoc](https://github.com/clauderic/react-sortable-hoc) not supported now
+## Performance
+
+For best performance you should add `will-change: transform` to container styles
+
+In some situation you also can add `pointer-events: none` to parent container styles while scrolling
+
+## Sorting
+
+Sorting by [react-sortable-hoc](https://github.com/clauderic/react-sortable-hoc) not supported now
+
+You can fork this package and switch positioning by margins to positioning by padding (or absolute positioning) but all this methods needs additional dom node (items container)
+
+## Best alternatives
+
+- [react-virtualized](https://github.com/bvaughn/react-virtualized)
+- [react-window](https://github.com/bvaughn/react-window)

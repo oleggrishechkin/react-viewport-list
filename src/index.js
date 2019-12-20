@@ -1,12 +1,20 @@
+/* eslint-disable react/prop-types */
 import React, { useState, useRef, useEffect, useMemo, Fragment } from 'react';
 
-// eslint-disable-next-line react/prop-types
-const ViewPortList = ({ listLength = 0, itemMinHeight = 1, margin = 0, children = null, scrollToIndex = -1 }) => {
+const ViewPortList = ({
+    listLength = 0,
+    itemMinHeight = 1,
+    margin = 0,
+    fixed = false,
+    overscan = 10,
+    children = null,
+    scrollToIndex = -1
+}) => {
     const itemMinHeightWithMargin = itemMinHeight + margin;
     const maxIndex = listLength - 1;
     const [startIndex, setStartIndex] = useState(0);
     const [windowHeight, setWindowHeight] = useState(document.documentElement.clientHeight);
-    const maxVisibleItemsCount = Math.ceil(windowHeight / itemMinHeight) * 2;
+    const maxVisibleItemsCount = Math.ceil(windowHeight / itemMinHeight) * (fixed ? 1 : 2) + overscan * (fixed ? 2 : 1);
     const normalizedStartIndex = Math.min(startIndex, Math.max(maxIndex - maxVisibleItemsCount, 0));
     const endIndex = Math.min(normalizedStartIndex + maxVisibleItemsCount, maxIndex);
     const startRef = useRef(null);
@@ -59,6 +67,25 @@ const ViewPortList = ({ listLength = 0, itemMinHeight = 1, margin = 0, children 
                     Math.max(maxIndex - maxVisibleItemsCount, 0)
                 )
             );
+
+            return;
+        }
+
+        if (fixed) {
+            setStartIndex(
+                Math.min(
+                    Math.max(
+                        Math.floor(
+                            (normalizedStartIndex * itemMinHeightWithMargin - startRefRect.top) /
+                                itemMinHeightWithMargin
+                        ) - overscan,
+                        0
+                    ),
+                    Math.max(maxIndex - maxVisibleItemsCount, 0)
+                )
+            );
+            variables.current.inc = 1;
+            variables.current.dec = 1;
 
             return;
         }
