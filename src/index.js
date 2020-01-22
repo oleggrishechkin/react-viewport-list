@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 import React, { useState, useRef, useEffect, useMemo, Fragment } from 'react';
 
-const OVER = 720;
+const MIN_START_INDEX = 1;
 
 const ViewPortList = ({
     viewPortRef = { current: document.documentElement },
@@ -13,10 +13,10 @@ const ViewPortList = ({
     children = null
 }) => {
     const itemMinHeightWithMargin = itemMinHeight + margin;
-    const [startIndex, setStartIndex] = useState(0);
+    const [startIndex, setStartIndex] = useState(MIN_START_INDEX);
     const [maxVisibleItemsCount, setMaxVisibleItemsCount] = useState(0);
-    const maxIndex = listLength - 1;
-    const maxStartIndex = Math.max(maxIndex - maxVisibleItemsCount, 0);
+    const maxIndex = listLength - 2;
+    const maxStartIndex = Math.max(maxIndex - maxVisibleItemsCount, MIN_START_INDEX);
     const normalizedStartIndex = Math.min(startIndex, maxStartIndex);
     const endIndex = Math.min(normalizedStartIndex + maxVisibleItemsCount, maxIndex);
     const startRef = useRef(null);
@@ -25,7 +25,8 @@ const ViewPortList = ({
         scrolledToIndex: -1,
         inc: 1,
         dec: 1,
-        stepFunc: () => {}
+        stepFunc: () => {},
+        cache: []
     });
 
     variables.current.stepFunc = () => {
@@ -40,8 +41,7 @@ const ViewPortList = ({
 
         setMaxVisibleItemsCount(
             Math.ceil(viewPortRefRect.height / itemMinHeightWithMargin) +
-                Math.ceil(OVER / itemMinHeightWithMargin) +
-                overscan
+                Math.ceil(overscan / itemMinHeightWithMargin) * 2
         );
 
         if (startIndex !== normalizedStartIndex) {
@@ -70,7 +70,10 @@ const ViewPortList = ({
             }
 
             setStartIndex(
-                Math.min(Math.max(scrollToIndex - Math.ceil(OVER / itemMinHeightWithMargin), 0), maxStartIndex)
+                Math.min(
+                    Math.max(scrollToIndex - Math.ceil(overscan / itemMinHeightWithMargin), MIN_START_INDEX),
+                    maxStartIndex
+                )
             );
 
             return;
@@ -84,7 +87,9 @@ const ViewPortList = ({
         }
 
         const startRefRect = startRef.current.getBoundingClientRect();
-        const topLimit = viewPortRefRect.top - OVER;
+        const topLimit = viewPortRefRect.top - overscan;
+
+        variables.current.cache[startIndex] = startRefRect.height - itemMinHeight;
 
         if (startRefRect.bottom < topLimit) {
             setStartIndex(Math.min(startIndex + variables.current.inc, maxStartIndex));
@@ -95,7 +100,7 @@ const ViewPortList = ({
         }
 
         if (startRefRect.top > topLimit) {
-            setStartIndex(Math.max(startIndex - variables.current.dec, 0));
+            setStartIndex(Math.max(startIndex - variables.current.dec, MIN_START_INDEX));
             variables.current.inc = 1;
             variables.current.dec = variables.current.dec * 2;
 
@@ -131,19 +136,20 @@ const ViewPortList = ({
                     innerRef: maxIndex === scrollToIndex ? scrollRef : undefined,
                     index: 0,
                     style: {
-                        marginBottom: Math.max(normalizedStartIndex - 1, 0) * itemMinHeightWithMargin + margin
+                        marginBottom:
+                            Math.max(normalizedStartIndex - 1, 0) * itemMinHeightWithMargin +
+                            margin +
+                            variables.current.cache.slice(0, normalizedStartIndex).reduce((acc, curr) => acc + curr, 0)
                     }
                 })
             );
         }
 
-        const loopStartIndex = Math.max(normalizedStartIndex, 1);
-        const loopEndIndex = Math.min(endIndex, maxIndex - 1);
-
-        for (let index = loopStartIndex; index <= loopEndIndex; ++index) {
+        for (let index = normalizedStartIndex; index <= endIndex; ++index) {
             result.push(
                 children({
-                    innerRef: index === loopStartIndex ? startRef : index === scrollToIndex ? scrollRef : undefined,
+                    innerRef:
+                        index === normalizedStartIndex ? startRef : index === scrollToIndex ? scrollRef : undefined,
                     index,
                     style: {
                         marginBottom: margin
@@ -158,7 +164,7 @@ const ViewPortList = ({
                     innerRef: maxIndex === scrollToIndex ? scrollRef : undefined,
                     index: maxIndex,
                     style: {
-                        marginTop: Math.max(maxIndex - endIndex - 1, 0) * itemMinHeightWithMargin + margin
+                        marginTop: Math.max(maxIndex - endIndex, 0) * itemMinHeightWithMargin + margin
                     }
                 })
             );

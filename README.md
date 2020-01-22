@@ -13,9 +13,9 @@ See 100k list [demo](https://oleggrishechkin.github.io/react-viewport-list) with
 - No list width/height required
 - Support scroll to index
 - No extra DOM nodes
+- No cache required
 - Fast (60 fps)
 - Lightweight
-- No cache
 
 ## Getting Started
 
@@ -25,81 +25,197 @@ See 100k list [demo](https://oleggrishechkin.github.io/react-viewport-list) with
 npm install --save react-viewport-list
 ```
 
-### Importing:
+### Basic Usage:
 
 ```javascript
+import React from 'react';
 import ViewPortList from 'react-viewport-list';
-```
+ 
+const ItemsList = ({ items }) => (
+    <div className="scroll-container">
+        <ViewPortList
+            listLength={items.length}
+            itemMinHeight={40}
+            margin={8}
+        >
+            {({ innerRef, index, style }) => (
+                <div
+                    ref={innerRef}
+                    key={item[index].id}
+                    className="item"
+                    style={style}
+                >
+                    {items[index].title}
+                </div>
+            )}
+        </ViewPortList>
+    </div>
+);
 
-### Usage:
-
-```javascript
-<ul>
-    <ViewPortList itemMinHeight={40} margin={8}>
-        {({ innerRef, index, style }) => (
-            <li ref={innerRef} key={index} style={style}>
-                {items[index].title}
-            </li>
-        )}
-    </ViewPortList>
-</ul>
+export default ItemsList;
 ```
 
 ## Props
 
 name             |type                               |default                              |description
 -----------------|-----------------------------------|-------------------------------------|----------------------------------------------------------------------------------------------------------------------------
-**viewPortRef**  |object                             |{ current: document.documentElement }|View port ref object (usually is scroll container ref).<br>Set this prop is you want more accurate list virtualizing
+**viewPortRef**  |object                             |{ current: document.documentElement }|View port ref object (usually is scroll container ref).<br>Set this prop is you want more accurate virtualizing
 **listLength**   |number                             |0                                    |List items count
 **itemMinHeight**|number                             |1                                    |Item minimal height in px
 **margin**       |number                             |0                                    |Margin between items in px
-**overscan**     |number                             |0                                    |Extra rendered items count.<br>Set this prop if you want prerender more items.<br>Useful for lists with fixed item height
-**scrollToIndex**|number                             |-1                                   |Scroll to item with specified index.<br>Item will be on top of scroll container
+**limit**        |number                             |0                                    |Extra rendered px on top and bottom.<br>Set this prop if you want increase virtualizing area<br>It can fix black screen on scroll
+**scrollToIndex**|number                             |-1                                   |Scroll to item with specified index
 **children**     |({ innerRef, index, style }) => jsx|null                                 |Item render function
 
 ## Performance
 
-For best performance you should add `will-change: transform` to container styles
+For better performance you should add `will-change: transform` to container styles
 
-In some situation you also can add `pointer-events: none` to parent container styles while scrolling
+## Advanced Usage
 
-## Advanced
-`ViewPortList` is not a list is a part of a list. It means you can virtualize some parts of scroll container
+#### Grouping
 
 ```javascript
-<ScrollContainer>
-    <ListTitle title="First" />
-    <ViewPortList itemMinHeight={40} margin={8}>
-        {({ innerRef, index, style }) => (
-            <Item
-                innerRef={innerRef}
-                key={index}
-                style={style}
-                item={firstList[index].title}
-            />
-        )}
-    </ViewPortList>
-    <ListTitle title="Second" />
-    <ViewPortList itemMinHeight={60} margin={16}>
-        {({ innerRef, index, style }) => (
-            <Item
-                innerRef={innerRef}
-                key={index}
-                style={style}
-                item={secondList[index].title}
-            />
-        )}
-    </ViewPortList>
-</ScrollContainer>
+<div className="scroll-container">
+        <span className="group-title">{'Key Items'}</span>
+        <ViewPortList
+            listLength={keyItems.length}
+            itemMinHeight={60}
+            margin={8}
+        >
+            {({ innerRef, index, style }) => (
+                <div
+                    ref={innerRef}
+                    key={keyItems[index].id}
+                    className="key-item"
+                    style={style}
+                >
+                    {keyItems[index].title}
+                </div>
+            )}
+        </ViewPortList>
+        <span className="group-title">{'Items'}</span>
+        <ViewPortList
+            listLength={items.length}
+            itemMinHeight={40}
+            margin={8}
+        >
+            {({ innerRef, index, style }) => (
+                <div
+                    ref={innerRef}
+                    key={item[index].id}
+                    className="item"
+                    style={style}
+                >
+                    {items[index].title}
+                </div>
+            )}
+        </ViewPortList>
+    </div>
 ```
 
-Remember that `ViewPortList` always render some items even list is not in view port.
+#### Setting `viewPortRef`
+
+```javascript
+import React, { useRef } from 'react';
+import ViewPortList from 'react-viewport-list';
+ 
+const ItemsList = ({ items }) => {
+    const viewPortRef = useRef(null);
+
+    return (
+        <div ref={viewPortRef} className="scroll-container">
+            <ViewPortList
+                viewPortRef={viewPortRef}
+                listLength={items.length}
+                itemMinHeight={40}
+                margin={8}
+            >
+                {({ innerRef, index, style }) => (
+                    <div
+                        ref={innerRef}
+                        key={item[index].id}
+                        className="item"
+                        style={style}
+                    >
+                        {items[index].title}
+                    </div>
+                )}
+            </ViewPortList>
+        </div>
+    );
+};
+
+export default ItemsList;
+```
+
+#### Setting `overscan`
+
+```javascript
+<div className="scroll-container">
+    <ViewPortList
+        listLength={items.length}
+        itemMinHeight={40}
+        margin={8}
+        overscan={200}
+    >
+        {({ innerRef, index, style }) => (
+            <div
+                ref={innerRef}
+                key={item[index].id}
+                className="item"
+                style={style}
+            >
+                {items[index].title}
+            </div>
+        )}
+    </ViewPortList>
+</div>
+```
+
+#### Using `scrollToIndex`
+
+```javascript
+import React, { useState } from 'react';
+import ViewPortList from 'react-viewport-list';
+ 
+const ItemsList = ({ items }) => {
+    const [scrollToIndex, setScrollToIndex] = useState(-1);
+
+    return (
+        <div ref={viewPortRef} className="scroll-container">
+            <ViewPortList
+                viewPortRef={viewPortRef}
+                listLength={items.length}
+                itemMinHeight={40}
+                margin={8}
+                scrollToIndex={scrollToIndex}
+            >
+                {({ innerRef, index, style }) => (
+                    <div
+                        ref={innerRef}
+                        key={item[index].id}
+                        className="item"
+                        style={style}
+                    >
+                        {items[index].title}
+                    </div>
+                )}
+            </ViewPortList>
+            <button className="up-button" onClick={() => {
+                setScrollToIndex(-1);
+                setScrollToIndex(0);
+            }} />
+        </div>
+    );
+};
+
+export default ItemsList;
+```
 
 ## Sorting
 
 Sorting by [react-sortable-hoc](https://github.com/clauderic/react-sortable-hoc) not supported now
-
-You can fork this package and switch positioning by margins to positioning by padding (or absolute positioning) but all this methods needs additional dom node (items container)
 
 ## Best alternatives
 
