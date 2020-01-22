@@ -130,10 +130,10 @@ const ViewPortList = ({
 
         const result = [];
 
-        if (maxIndex >= 0) {
+        if (listLength > 0) {
             result.push(
                 children({
-                    innerRef: maxIndex === scrollToIndex ? scrollRef : undefined,
+                    innerRef: 0 === scrollToIndex ? scrollRef : undefined,
                     index: 0,
                     style: {
                         marginBottom:
@@ -158,11 +158,11 @@ const ViewPortList = ({
             );
         }
 
-        if (maxIndex > 0) {
+        if (listLength > 1) {
             result.push(
                 children({
-                    innerRef: maxIndex === scrollToIndex ? scrollRef : undefined,
-                    index: maxIndex,
+                    innerRef: listLength - 1 === scrollToIndex ? scrollRef : undefined,
+                    index: listLength - 1,
                     style: {
                         marginTop: Math.max(maxIndex - endIndex, 0) * itemMinHeightWithMargin + margin
                     }
@@ -171,7 +171,16 @@ const ViewPortList = ({
         }
 
         return result;
-    }, [children, endIndex, itemMinHeightWithMargin, margin, maxIndex, normalizedStartIndex, scrollToIndex]);
+    }, [
+        children,
+        endIndex,
+        itemMinHeightWithMargin,
+        listLength,
+        margin,
+        maxIndex,
+        normalizedStartIndex,
+        scrollToIndex
+    ]);
 
     return <Fragment>{items}</Fragment>;
 };
