@@ -56,25 +56,25 @@ const ViewPortList = ({
             variables.current.inc = 1;
             variables.current.dec = 1;
 
-            if (scrollToIndex < 0 || scrollToIndex > maxIndex) {
+            if (scrollToIndex < 0 || scrollToIndex > listLength - 1) {
                 variables.current.scrolledToIndex = scrollToIndex;
 
                 return;
             }
 
-            if (scrollToIndex >= startIndex && scrollToIndex <= endIndex && (scrollRef.current || startRef.current)) {
+            const targetIndex = Math.min(
+                Math.max(scrollToIndex - Math.ceil(overscan / itemMinHeightWithMargin), MIN_START_INDEX),
+                maxStartIndex
+            );
+
+            if (startIndex === targetIndex && (scrollRef.current || startRef.current)) {
                 (scrollRef.current || startRef.current).scrollIntoView();
                 variables.current.scrolledToIndex = scrollToIndex;
 
                 return;
             }
 
-            setStartIndex(
-                Math.min(
-                    Math.max(scrollToIndex - Math.ceil(overscan / itemMinHeightWithMargin), MIN_START_INDEX),
-                    maxStartIndex
-                )
-            );
+            setStartIndex(targetIndex);
 
             return;
         }
