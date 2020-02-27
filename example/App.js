@@ -1,10 +1,11 @@
-import React, { useMemo, useRef, useEffect, useState } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { loremIpsum } from 'lorem-ipsum';
 import ViewPortList from '../src';
 import theme from './App.module.css';
 
 const App = () => {
-    const [scrollIndex, setScrollIndex] = useState(-1);
+    const ref = useRef(null);
+    const listRef = useRef(null);
     const items = useMemo(
         () =>
             new Array(100000).fill(null).map(() => ({
@@ -12,10 +13,9 @@ const App = () => {
             })),
         []
     );
-    const ref = useRef(null);
 
     useEffect(() => {
-        window.scrollToIndex = (index) => setScrollIndex(index);
+        window.scrollToIndex = (index, toTop) => listRef.current.scrollToIndex(index, toTop);
     }, []);
 
     return (
@@ -26,11 +26,12 @@ const App = () => {
             <main className={theme.main}>
                 <ul className={theme.list} ref={ref}>
                     <ViewPortList
+                        ref={listRef}
                         viewPortRef={ref}
                         listLength={items.length}
                         itemMinHeight={40}
                         margin={8}
-                        scrollToIndex={scrollIndex}
+                        overscan={200}
                     >
                         {({ innerRef, index, style }) => (
                             <li ref={innerRef} key={index} style={style} className={theme.item}>

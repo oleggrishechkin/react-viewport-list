@@ -58,14 +58,24 @@ export default ItemsList;
 ## Props
 
 name             |type                               |default                              |description
------------------|-----------------------------------|-------------------------------------|----------------------------------------------------------------------------------------------------------------------------
+-----------------|-----------------------------------|-------------------------------------|---------------------------------------------------------------------------------------------------------------------------------
 **viewPortRef**  |object                             |{ current: document.documentElement }|View port ref object (usually is scroll container ref).<br>Set this prop is you want more accurate virtualizing
 **listLength**   |number                             |0                                    |List items count
 **itemMinHeight**|number                             |1                                    |Item minimal height in px
 **margin**       |number                             |0                                    |Margin between items in px
 **limit**        |number                             |0                                    |Extra rendered px on top and bottom.<br>Set this prop if you want increase virtualizing area<br>It can fix black screen on scroll
-**scrollToIndex**|number                             |-1                                   |Scroll to item with specified index
 **children**     |({ innerRef, index, style }) => jsx|null                                 |Item render function
+
+## Methods
+
+### scrollToIndex
+
+Params
+
+name     |type  |default|description
+---------|------|-------|-----------------------------------------------------------------------------------------------
+**index**|number|-1     |item index for scroll
+**toTop**|bool  |0      |[scrollIntoView](https://developer.mozilla.org/ru/docs/Web/API/Element/scrollIntoView) argument
 
 ## Performance
 
@@ -180,16 +190,16 @@ import React, { useState } from 'react';
 import ViewPortList from 'react-viewport-list';
  
 const ItemsList = ({ items }) => {
-    const [scrollToIndex, setScrollToIndex] = useState(-1);
+    const listRef = useRef(null);
 
     return (
         <div ref={viewPortRef} className="scroll-container">
             <ViewPortList
+                ref={listRef}
                 viewPortRef={viewPortRef}
                 listLength={items.length}
                 itemMinHeight={40}
                 margin={8}
-                scrollToIndex={scrollToIndex}
             >
                 {({ innerRef, index, style }) => (
                     <div
@@ -203,8 +213,7 @@ const ItemsList = ({ items }) => {
                 )}
             </ViewPortList>
             <button className="up-button" onClick={() => {
-                setScrollToIndex(-1);
-                setScrollToIndex(0);
+                listRef.current.scrollToIndex(0);
             }} />
         </div>
     );
