@@ -27,29 +27,29 @@
   "scripts": {
     "start": "cross-env NODE_ENV=development webpack-dev-server --mode development --hot",
     "build": "rimraf dist && cross-env NODE_ENV=production webpack --mode production",
-    "test": "jest",
-    "lint": "eslint .",
-    "lint-fix": "eslint --fix .",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
     "prepublish": "rimraf lib && babel src -d lib"
   },
   "devDependencies": {
     "@babel/cli": "^7.7.5",
-    "@babel/core": "^7.7.5",
+    "@babel/core": "^7.8.7",
     "@babel/preset-env": "^7.7.6",
     "@babel/preset-react": "^7.6.3",
+    "babel-eslint": "^10.1.0",
     "babel-loader": "^8.0.6",
+    "configs-og": "^0.1.0",
     "cross-env": "^6.0.3",
     "css-loader": "^3.3.0",
-    "eslint-config-prettier-og": "^1.0.0",
+    "eslint": "^6.8.0",
     "gh-pages": "2.1.1",
     "html-webpack-plugin": "^3.2.0",
-    "husky": "^3.0.9",
+    "husky": "^4.2.3",
     "jest": "^24.9.0",
-    "lint-staged": "^9.4.2",
+    "lint-staged": "^10.0.8",
     "lorem-ipsum": "^2.0.3",
     "mini-css-extract-plugin": "^0.8.0",
+    "prettier": "^1.18.2",
     "react": "^16.10.2",
     "react-dom": "^16.10.2",
     "rimraf": "^3.0.0",
@@ -74,17 +74,18 @@
     ]
   },
   "eslintConfig": {
-    "extends": "prettier-og"
+    "extends": "./node_modules/configs-og/.eslintrc.js"
   },
-  "prettier": "eslint-config-prettier-og/prettier.config.js",
-  "lint-staged": {
-    "*.(js|jsx)": [
-      "eslint"
-    ]
+  "prettier": "configs-og/prettier.config.js",
+  "babel": {
+    "extends": "configs-og/babel.config.js"
   },
   "husky": {
     "hooks": {
       "pre-commit": "lint-staged"
     }
+  },
+  "lint-staged": {
+    "*.(js|jsx)": ["eslint --quiet"]
   }
 }
