@@ -1,122 +1,203 @@
-/* eslint-disable react/prop-types */
-import React, { useState, useRef, useEffect, useMemo, Fragment, useImperativeHandle } from 'react';
+import React, { useState, useRef, useEffect, Fragment, useImperativeHandle, useLayoutEffect, useMemo } from 'react';
 
-const MIN_START_INDEX = 1;
+const normalizeValue = (min, value, max) => Math.max(Math.min(value, max), min);
+
+const MIN_INDEX = 0;
 
 const ViewPortList = React.forwardRef(
     (
         {
-            viewPortRef = { current: document.documentElement },
-            listLength = 0,
-            itemMinHeight = 1,
-            margin = 0,
-            overscan = 0,
-            children = null
+            viewPortRef = null,
+            items = [],
+            itemMinHeight,
+            marginBottom = 0,
+            overscan = 1,
+            initialIndex = 0,
+            initialAlignToTop = true,
+            children
         },
         ref
     ) => {
-        const itemMinHeightWithMargin = itemMinHeight + margin;
-        const [startIndex, setStartIndex] = useState(MIN_START_INDEX);
-        const [maxVisibleItemsCount, setMaxVisibleItemsCount] = useState(0);
-        const maxIndex = listLength - 2;
-        const maxStartIndex = Math.max(maxIndex - maxVisibleItemsCount, MIN_START_INDEX);
-        const normalizedStartIndex = Math.min(startIndex, maxStartIndex);
-        const endIndex = Math.min(normalizedStartIndex + maxVisibleItemsCount, maxIndex);
-        const startRef = useRef(null);
-        const scrollRef = useRef(null);
-        const variables = useRef({
-            scrollToIndex: null,
-            stepFunc: () => {},
-            cache: []
-        });
+        const maxIndex = items.length - 1;
+        const normalizedInitialIndex = normalizeValue(MIN_INDEX, initialIndex, maxIndex);
+        const [[startIndex, endIndex], setIndexes] = useState([normalizedInitialIndex, normalizedInitialIndex]);
+        const topRef = useRef(null);
+        const bottomRef = useRef(null);
+        const cache = useRef([]);
+        const step = useRef(() => {});
+        const scrollToIndex = useRef(
+            normalizedInitialIndex ? { index: normalizedInitialIndex, alignToTop: initialAlignToTop } : null
+        );
+        const isOverflowAnchorSupported = useRef(CSS.supports('overflow-anchor: auto'));
+        const scrollCompensationEndIndex = useRef(null);
+        const topStyle = useMemo(() => {
+            const topHeight = cache.current
+                .slice(MIN_INDEX, startIndex)
+                .reduce((sum, next) => sum + next, startIndex * (itemMinHeight + marginBottom));
 
-        variables.current.stepFunc = () => {
-            if (!viewPortRef.current) {
-                return;
-            }
+            return {
+                minHeight: topHeight,
+                height: topHeight,
+                maxHeight: topHeight,
+                overflowAnchor: 'none',
+                pointerEvents: 'none',
+                userSelect: 'none',
+                padding: 0,
+                margin: 0
+            };
+        }, [startIndex, itemMinHeight, marginBottom]);
+        const bottomStyle = useMemo(() => {
+            const bottomHeight = cache.current
+                .slice(endIndex + 1, maxIndex)
+                .reduce((sum, next) => sum + next, (itemMinHeight + marginBottom) * (maxIndex - endIndex));
 
-            const viewPortRefRect = viewPortRef.current.getBoundingClientRect();
+            return {
+                minHeight: bottomHeight,
+                height: bottomHeight,
+                maxHeight: bottomHeight,
+                overflowAnchor: 'none',
+                pointerEvents: 'none',
+                userSelect: 'none',
+                padding: 0,
+                margin: 0
+            };
+        }, [endIndex, maxIndex, itemMinHeight, marginBottom]);
+        const slicedItems = useMemo(
+            () => items.slice(startIndex, endIndex + 1).map((item, index) => children(item, startIndex + index)),
+            [items, startIndex, endIndex, children]
+        );
 
-            setMaxVisibleItemsCount(
-                Math.ceil(viewPortRefRect.height / itemMinHeightWithMargin) +
-                    Math.ceil(overscan / itemMinHeightWithMargin) * 2
-            );
+        step.current = () => {
+            const firstElement = topRef.current.nextSibling;
 
-            if (startIndex !== normalizedStartIndex) {
-                setStartIndex(normalizedStartIndex);
+            if (scrollToIndex.current) {
+                const targetIndex = normalizeValue(MIN_INDEX, scrollToIndex.current.index, maxIndex);
 
-                return;
-            }
-
-            if (variables.current.scrollToIndex) {
-                if (
-                    variables.current.scrollToIndex.index < 0 ||
-                    variables.current.scrollToIndex.index > listLength - 1
-                ) {
-                    variables.current.scrollToIndex = null;
+                if (startIndex !== targetIndex) {
+                    setIndexes([targetIndex, targetIndex]);
 
                     return;
                 }
 
-                const targetIndex = Math.min(
-                    Math.max(
-                        variables.current.scrollToIndex.index - Math.ceil(overscan / itemMinHeightWithMargin),
-                        MIN_START_INDEX
-                    ),
-                    maxStartIndex
-                );
+                firstElement.scrollIntoView(scrollToIndex.current.alignToTop);
+                scrollToIndex.current = null;
 
-                if (startIndex === targetIndex && (scrollRef.current || startRef.current)) {
-                    (scrollRef.current || startRef.current).scrollIntoView(variables.current.scrollToIndex.toTop);
-                    variables.current.scrollToIndex = null;
+                return;
+            }
 
-                    return;
+            const clientHeight = document.documentElement.clientHeight;
+            const viewPortRect = viewPortRef && viewPortRef.current && viewPortRef.current.getBoundingClientRect();
+            const viewPortTop = viewPortRect ? normalizeValue(MIN_INDEX, viewPortRect.top, clientHeight) : MIN_INDEX;
+            const viewPortBottom = viewPortRect
+                ? normalizeValue(MIN_INDEX, viewPortRect.bottom, clientHeight)
+                : clientHeight;
+            const overscanHeight = overscan * (itemMinHeight + marginBottom);
+            const topLimit = viewPortTop - overscanHeight;
+            const bottomLimit = viewPortBottom + overscanHeight;
+            const firstElementRect = firstElement.getBoundingClientRect();
+            const lastElementRect = bottomRef.current.previousSibling.getBoundingClientRect();
+
+            let nextStartIndex = startIndex;
+            let nextEndIndex = endIndex;
+
+            if (firstElementRect.top >= bottomLimit) {
+                let diff = firstElementRect.top - bottomLimit;
+                --nextStartIndex;
+
+                while (diff >= 0 && nextStartIndex >= MIN_INDEX) {
+                    diff -= cache.current[nextStartIndex] || itemMinHeight;
+                    --nextStartIndex;
                 }
 
-                setStartIndex(targetIndex);
+                scrollCompensationEndIndex.current = startIndex;
+                nextEndIndex = nextStartIndex;
+            } else if (lastElementRect.bottom + marginBottom <= topLimit) {
+                let diff = topLimit - lastElementRect.bottom + marginBottom;
+                nextStartIndex = endIndex + 1;
 
-                return;
+                while (diff >= 0 && nextStartIndex <= maxIndex) {
+                    diff -= cache.current[nextStartIndex] || itemMinHeight;
+                    ++nextStartIndex;
+                }
+
+                nextEndIndex = nextStartIndex;
+            } else {
+                if (firstElementRect.bottom + marginBottom < topLimit) {
+                    ++nextStartIndex;
+                } else if (firstElementRect.top >= topLimit) {
+                    scrollCompensationEndIndex.current = startIndex;
+                    --nextStartIndex;
+                }
+
+                if (lastElementRect.bottom + marginBottom <= bottomLimit) {
+                    ++nextEndIndex;
+                } else if (lastElementRect.top > bottomLimit) {
+                    --nextEndIndex;
+                }
             }
 
-            if (!startRef.current || listLength <= maxVisibleItemsCount) {
-                return;
-            }
+            nextStartIndex = normalizeValue(MIN_INDEX, nextStartIndex, maxIndex);
+            nextEndIndex = normalizeValue(nextStartIndex, nextEndIndex, maxIndex);
 
-            const startRefRect = startRef.current.getBoundingClientRect();
-            const topLimit = viewPortRefRect.top - overscan;
+            if (nextStartIndex !== startIndex || nextEndIndex !== endIndex) {
+                let index = startIndex;
+                let element = firstElement;
 
-            variables.current.cache[startIndex] = startRefRect.height - itemMinHeight;
+                while (index <= endIndex && element !== bottomRef.current) {
+                    cache.current[index] = element.clientHeight;
+                    element = element.nextSibling;
+                    ++index;
+                }
 
-            if (startRefRect.bottom < topLimit) {
-                const diff = Math.max(Math.floor((topLimit - startRefRect.bottom) / itemMinHeightWithMargin), 1);
-
-                setStartIndex(Math.min(startIndex + (diff > maxVisibleItemsCount ? diff : 1), maxStartIndex));
-
-                return;
-            }
-
-            if (startRefRect.top > topLimit) {
-                const diff = Math.max(Math.floor((startRefRect.top - topLimit) / itemMinHeightWithMargin), 1);
-
-                setStartIndex(Math.max(startIndex - (diff > maxVisibleItemsCount ? diff : 1), MIN_START_INDEX));
+                setIndexes([nextStartIndex, nextEndIndex]);
             }
         };
 
         useImperativeHandle(
             ref,
             () => ({
-                scrollToIndex: (index = -1, toTop = true) => {
-                    variables.current.scrollToIndex = { index, toTop };
+                scrollToIndex: (index = -1, alignToTop = true) => {
+                    scrollToIndex.current = { index, alignToTop };
                 }
             }),
             []
         );
 
+        useLayoutEffect(() => {
+            if (scrollCompensationEndIndex.current === null) {
+                return;
+            }
+
+            if (!viewPortRef || isOverflowAnchorSupported.current) {
+                scrollCompensationEndIndex.current = null;
+
+                return;
+            }
+
+            let index = startIndex;
+            let element = topRef.current.nextSibling;
+            let heightDiff = 0;
+
+            while (index < scrollCompensationEndIndex.current && element !== bottomRef.current) {
+                heightDiff += element.clientHeight - (cache.current[index] || 0) - itemMinHeight;
+                element = element.nextSibling;
+                ++index;
+            }
+
+            if (viewPortRef && heightDiff) {
+                viewPortRef.current.style.overflowY = 'hidden';
+                viewPortRef.current.scrollTop += heightDiff;
+                viewPortRef.current.style.overflowY = null;
+            }
+
+            scrollCompensationEndIndex.current = null;
+        }, [viewPortRef, startIndex, itemMinHeight]);
+
         useEffect(() => {
-            let frameId = 0;
+            let frameId = MIN_INDEX;
             const frame = () => {
                 frameId = requestAnimationFrame(frame);
-                variables.current.stepFunc();
+                step.current();
             };
 
             frame();
@@ -124,70 +205,13 @@ const ViewPortList = React.forwardRef(
             return () => cancelAnimationFrame(frameId);
         }, []);
 
-        const items = useMemo(() => {
-            if (!children) {
-                return false;
-            }
-
-            const result = [];
-
-            if (listLength > 0) {
-                result.push(
-                    children({
-                        innerRef:
-                            !!variables.current.scrollToIndex && 0 === variables.current.scrollToIndex.index
-                                ? scrollRef
-                                : undefined,
-                        index: 0,
-                        style: {
-                            marginBottom: variables.current.cache
-                                .slice(0, normalizedStartIndex)
-                                .reduce(
-                                    (acc, curr) => acc + curr,
-                                    Math.max(normalizedStartIndex - 1, 0) * itemMinHeightWithMargin + margin
-                                )
-                        }
-                    })
-                );
-            }
-
-            for (let index = normalizedStartIndex; index <= endIndex; ++index) {
-                result.push(
-                    children({
-                        innerRef:
-                            index === normalizedStartIndex
-                                ? startRef
-                                : !!variables.current.scrollToIndex && index === variables.current.scrollToIndex.index
-                                ? scrollRef
-                                : undefined,
-                        index,
-                        style: {
-                            marginBottom: margin
-                        }
-                    })
-                );
-            }
-
-            if (listLength > 1) {
-                result.push(
-                    children({
-                        innerRef:
-                            !!variables.current.scrollToIndex &&
-                            listLength - 1 === variables.current.scrollToIndex.index
-                                ? scrollRef
-                                : undefined,
-                        index: listLength - 1,
-                        style: {
-                            marginTop: Math.max(maxIndex - endIndex, 0) * itemMinHeightWithMargin
-                        }
-                    })
-                );
-            }
-
-            return result;
-        }, [children, endIndex, itemMinHeightWithMargin, listLength, margin, maxIndex, normalizedStartIndex]);
-
-        return <Fragment>{items}</Fragment>;
+        return (
+            <Fragment key="ViewPortList">
+                <div key="ViewPortListTop" ref={topRef} style={topStyle} />
+                {slicedItems}
+                <div key="ViewPortListBottom" ref={bottomRef} style={bottomStyle} />
+            </Fragment>
+        );
     }
 );
 
