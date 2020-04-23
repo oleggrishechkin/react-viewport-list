@@ -144,7 +144,7 @@ const ViewPortList = React.forwardRef(
                 let element = firstElement;
 
                 while (index <= endIndex && element !== bottomRef.current) {
-                    cache.current[index] = element.clientHeight;
+                    cache.current[index] = element.clientHeight - itemMinHeight;
                     element = element.nextSibling;
                     ++index;
                 }
