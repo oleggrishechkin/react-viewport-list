@@ -2,7 +2,21 @@ import React, { useState, useRef, useEffect, Fragment, useImperativeHandle, useL
 
 const normalizeValue = (min, value, max) => Math.max(Math.min(value, max), min);
 
+const getStyle = (height) => ({
+    minHeight: height,
+    height: height,
+    maxHeight: height,
+    overflowAnchor: 'none',
+    pointerEvents: 'none',
+    userSelect: 'none',
+    padding: 0,
+    margin: 0,
+    border: 'none'
+});
+
 const MIN_INDEX = 0;
+
+const IS_OVERFLOW_ANCHOR_SUPPORTED = CSS.supports('overflow-anchor: auto');
 
 const ViewPortList = React.forwardRef(
     (
@@ -19,118 +33,127 @@ const ViewPortList = React.forwardRef(
         ref
     ) => {
         const maxIndex = items.length - 1;
-        const normalizedInitialIndex = normalizeValue(MIN_INDEX, initialIndex, maxIndex);
-        const [[startIndex, endIndex], setIndexes] = useState([normalizedInitialIndex, normalizedInitialIndex]);
+        const itemMinHeightWithMargin = itemMinHeight + marginBottom;
+        const [[startIndex, endIndex], setIndexes] = useState([initialIndex, initialIndex]);
         const topRef = useRef(null);
         const bottomRef = useRef(null);
-        const cache = useRef([]);
-        const step = useRef(() => {});
-        const scrollToIndex = useRef(
-            normalizedInitialIndex ? { index: normalizedInitialIndex, alignToTop: initialAlignToTop } : null
+        const variables = useRef({
+            cache: [],
+            step: () => {},
+            scrollToIndex: initialIndex ? { index: initialIndex, alignToTop: initialAlignToTop } : null,
+            scrollCompensationEndIndex: null
+        });
+        const normalizedStartIndex = normalizeValue(MIN_INDEX, startIndex, maxIndex);
+        const normalizedEndIndex = normalizeValue(normalizedStartIndex, endIndex, maxIndex);
+        const topStyle = useMemo(
+            () =>
+                getStyle(
+                    variables.current.cache
+                        .slice(MIN_INDEX, normalizedStartIndex)
+                        .reduce((sum, next) => sum + next, normalizedStartIndex * itemMinHeightWithMargin)
+                ),
+            [normalizedStartIndex, itemMinHeightWithMargin]
         );
-        const isOverflowAnchorSupported = useRef(CSS.supports('overflow-anchor: auto'));
-        const scrollCompensationEndIndex = useRef(null);
-        const topStyle = useMemo(() => {
-            const topHeight = cache.current
-                .slice(MIN_INDEX, startIndex)
-                .reduce((sum, next) => sum + next, startIndex * (itemMinHeight + marginBottom));
-
-            return {
-                minHeight: topHeight,
-                height: topHeight,
-                maxHeight: topHeight,
-                overflowAnchor: 'none',
-                pointerEvents: 'none',
-                userSelect: 'none',
-                padding: 0,
-                margin: 0
-            };
-        }, [startIndex, itemMinHeight, marginBottom]);
-        const bottomStyle = useMemo(() => {
-            const bottomHeight = cache.current
-                .slice(endIndex + 1, maxIndex)
-                .reduce((sum, next) => sum + next, (itemMinHeight + marginBottom) * (maxIndex - endIndex));
-
-            return {
-                minHeight: bottomHeight,
-                height: bottomHeight,
-                maxHeight: bottomHeight,
-                overflowAnchor: 'none',
-                pointerEvents: 'none',
-                userSelect: 'none',
-                padding: 0,
-                margin: 0
-            };
-        }, [endIndex, maxIndex, itemMinHeight, marginBottom]);
+        const bottomStyle = useMemo(
+            () =>
+                getStyle(
+                    variables.current.cache
+                        .slice(normalizedEndIndex + 1, maxIndex)
+                        .reduce((sum, next) => sum + next, itemMinHeightWithMargin * (maxIndex - normalizedEndIndex))
+                ),
+            [normalizedEndIndex, maxIndex, itemMinHeightWithMargin]
+        );
         const slicedItems = useMemo(
-            () => items.slice(startIndex, endIndex + 1).map((item, index) => children(item, startIndex + index)),
-            [items, startIndex, endIndex, children]
+            () =>
+                items
+                    .slice(normalizedStartIndex, normalizedEndIndex + 1)
+                    .map((item, index) => children(item, normalizedStartIndex + index)),
+            [items, normalizedStartIndex, normalizedEndIndex, children]
         );
 
-        step.current = () => {
-            const firstElement = topRef.current.nextSibling;
+        variables.current.step = () => {
+            const viewPortRect = viewPortRef && viewPortRef.current && viewPortRef.current.getBoundingClientRect();
+            const overscanHeight = overscan * itemMinHeightWithMargin;
+            const topLimit =
+                (viewPortRect ? normalizeValue(0, viewPortRect.top, document.documentElement.clientHeight) : 0) -
+                overscanHeight;
+            const bottomLimit =
+                (viewPortRect
+                    ? normalizeValue(0, viewPortRect.bottom, document.documentElement.clientHeight)
+                    : document.documentElement.clientHeight) + overscanHeight;
+            const firstElementRect = topRef.current.nextSibling.getBoundingClientRect();
+            const lastElementRect = bottomRef.current.previousSibling.getBoundingClientRect();
+            const maxItemsCountInViewPort = Math.ceil((bottomLimit - topLimit) / itemMinHeightWithMargin);
+            let nextStartIndex = startIndex;
+            let nextEndIndex = endIndex;
+            let diff;
+            let index;
+            let element;
 
-            if (scrollToIndex.current) {
-                const targetIndex = normalizeValue(MIN_INDEX, scrollToIndex.current.index, maxIndex);
+            if (variables.current.scrollToIndex) {
+                const targetIndex = normalizeValue(MIN_INDEX, variables.current.scrollToIndex.index, maxIndex);
 
-                if (startIndex !== targetIndex) {
-                    setIndexes([targetIndex, targetIndex]);
+                if (targetIndex >= startIndex && targetIndex <= endIndex) {
+                    index = startIndex;
+                    element = topRef.current.nextSibling;
+
+                    while (index <= targetIndex && element !== bottomRef.current) {
+                        if (index === targetIndex) {
+                            element.scrollIntoView(variables.current.scrollToIndex.alignToTop);
+                            variables.current.scrollToIndex = null;
+
+                            break;
+                        }
+
+                        element = element.nextSibling;
+                        ++index;
+                    }
 
                     return;
                 }
 
-                firstElement.scrollIntoView(scrollToIndex.current.alignToTop);
-                scrollToIndex.current = null;
+                nextStartIndex = targetIndex - maxItemsCountInViewPort;
+                nextEndIndex = targetIndex + maxItemsCountInViewPort;
+            } else if (firstElementRect.top >= bottomLimit) {
+                diff = firstElementRect.top - bottomLimit;
 
-                return;
-            }
+                nextEndIndex = startIndex;
 
-            const clientHeight = document.documentElement.clientHeight;
-            const viewPortRect = viewPortRef && viewPortRef.current && viewPortRef.current.getBoundingClientRect();
-            const viewPortTop = viewPortRect ? normalizeValue(MIN_INDEX, viewPortRect.top, clientHeight) : MIN_INDEX;
-            const viewPortBottom = viewPortRect
-                ? normalizeValue(MIN_INDEX, viewPortRect.bottom, clientHeight)
-                : clientHeight;
-            const overscanHeight = overscan * (itemMinHeight + marginBottom);
-            const topLimit = viewPortTop - overscanHeight;
-            const bottomLimit = viewPortBottom + overscanHeight;
-            const firstElementRect = firstElement.getBoundingClientRect();
-            const lastElementRect = bottomRef.current.previousSibling.getBoundingClientRect();
-
-            let nextStartIndex = startIndex;
-            let nextEndIndex = endIndex;
-
-            if (firstElementRect.top >= bottomLimit) {
-                let diff = firstElementRect.top - bottomLimit;
-                --nextStartIndex;
-
-                while (diff >= 0 && nextStartIndex >= MIN_INDEX) {
-                    diff -= cache.current[nextStartIndex] || itemMinHeight;
-                    --nextStartIndex;
+                while (diff >= 0 && nextEndIndex > MIN_INDEX) {
+                    diff -= (variables.current.cache[--nextEndIndex] || 0) + itemMinHeightWithMargin;
                 }
 
-                scrollCompensationEndIndex.current = startIndex;
-                nextEndIndex = nextStartIndex;
+                variables.current.scrollCompensationEndIndex = startIndex;
+                nextStartIndex = nextEndIndex - maxItemsCountInViewPort;
             } else if (lastElementRect.bottom + marginBottom <= topLimit) {
-                let diff = topLimit - lastElementRect.bottom + marginBottom;
-                nextStartIndex = endIndex + 1;
+                diff = topLimit - lastElementRect.bottom + marginBottom;
 
-                while (diff >= 0 && nextStartIndex <= maxIndex) {
-                    diff -= cache.current[nextStartIndex] || itemMinHeight;
-                    ++nextStartIndex;
+                nextStartIndex = endIndex;
+
+                while (diff >= 0 && nextStartIndex < maxIndex) {
+                    diff -= (variables.current.cache[++nextStartIndex] || 0) + itemMinHeightWithMargin;
                 }
 
-                nextEndIndex = nextStartIndex;
+                nextEndIndex = nextStartIndex + maxItemsCountInViewPort;
             } else {
                 if (firstElementRect.bottom + marginBottom < topLimit) {
                     ++nextStartIndex;
                 } else if (firstElementRect.top >= topLimit) {
-                    scrollCompensationEndIndex.current = startIndex;
-                    --nextStartIndex;
+                    diff = firstElementRect.top - topLimit;
+
+                    while (diff >= 0 && nextStartIndex > MIN_INDEX) {
+                        diff -= (variables.current.cache[--nextStartIndex] || 0) + itemMinHeightWithMargin;
+                    }
+
+                    variables.current.scrollCompensationEndIndex = startIndex;
                 }
 
                 if (lastElementRect.bottom + marginBottom <= bottomLimit) {
-                    ++nextEndIndex;
+                    diff = bottomLimit - lastElementRect.bottom - marginBottom;
+
+                    while (diff >= 0 && nextEndIndex < maxIndex) {
+                        diff -= (variables.current.cache[++nextEndIndex] || 0) + itemMinHeightWithMargin;
+                    }
                 } else if (lastElementRect.top > bottomLimit) {
                     --nextEndIndex;
                 }
@@ -140,13 +163,12 @@ const ViewPortList = React.forwardRef(
             nextEndIndex = normalizeValue(nextStartIndex, nextEndIndex, maxIndex);
 
             if (nextStartIndex !== startIndex || nextEndIndex !== endIndex) {
-                let index = startIndex;
-                let element = firstElement;
+                index = startIndex;
+                element = topRef.current.nextSibling;
 
                 while (index <= endIndex && element !== bottomRef.current) {
-                    cache.current[index] = element.clientHeight - itemMinHeight;
+                    variables.current.cache[index++] = element.clientHeight - itemMinHeight;
                     element = element.nextSibling;
-                    ++index;
                 }
 
                 setIndexes([nextStartIndex, nextEndIndex]);
@@ -157,19 +179,19 @@ const ViewPortList = React.forwardRef(
             ref,
             () => ({
                 scrollToIndex: (index = -1, alignToTop = true) => {
-                    scrollToIndex.current = { index, alignToTop };
+                    variables.current.scrollToIndex = { index, alignToTop };
                 }
             }),
             []
         );
 
         useLayoutEffect(() => {
-            if (scrollCompensationEndIndex.current === null) {
+            if (variables.current.scrollCompensationEndIndex === null) {
                 return;
             }
 
-            if (!viewPortRef || isOverflowAnchorSupported.current) {
-                scrollCompensationEndIndex.current = null;
+            if (!viewPortRef || IS_OVERFLOW_ANCHOR_SUPPORTED) {
+                variables.current.scrollCompensationEndIndex = null;
 
                 return;
             }
@@ -178,8 +200,8 @@ const ViewPortList = React.forwardRef(
             let element = topRef.current.nextSibling;
             let heightDiff = 0;
 
-            while (index < scrollCompensationEndIndex.current && element !== bottomRef.current) {
-                heightDiff += element.clientHeight - (cache.current[index] || 0) - itemMinHeight;
+            while (index < variables.current.scrollCompensationEndIndex && element !== bottomRef.current) {
+                heightDiff += element.clientHeight - (variables.current.cache[index] || 0) - itemMinHeight;
                 element = element.nextSibling;
                 ++index;
             }
@@ -190,14 +212,14 @@ const ViewPortList = React.forwardRef(
                 viewPortRef.current.style.overflowY = null;
             }
 
-            scrollCompensationEndIndex.current = null;
+            variables.current.scrollCompensationEndIndex = null;
         }, [viewPortRef, startIndex, itemMinHeight]);
 
         useEffect(() => {
-            let frameId = MIN_INDEX;
+            let frameId = null;
             const frame = () => {
                 frameId = requestAnimationFrame(frame);
-                step.current();
+                variables.current.step();
             };
 
             frame();
