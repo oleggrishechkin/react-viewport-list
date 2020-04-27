@@ -25,10 +25,17 @@ const App = () => {
     return (
         <div className="app">
             <header className="header">
-                <h1>{'React ViewPort List'}</h1>
+                <a
+                    className="link"
+                    href="https://github.com/oleggrishechkin/react-viewport-list"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    {'React ViewPort List'}
+                </a>
             </header>
-            <main className="main">
-                <div className="list" ref={ref}>
+            <main className="main" ref={ref}>
+                <div className="list">
                     <ViewPortList ref={listRef} viewPortRef={ref} items={items} itemMinHeight={68} marginBottom={16}>
                         {(item, index) => (
                             <div key={index} className={`item${index % 2 === 0 ? '' : ' odd'}`}>

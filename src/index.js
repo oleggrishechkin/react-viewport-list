@@ -34,13 +34,18 @@ const ViewPortList = React.forwardRef(
     ) => {
         const maxIndex = items.length - 1;
         const itemMinHeightWithMargin = itemMinHeight + marginBottom;
-        const [[startIndex, endIndex], setIndexes] = useState([initialIndex, initialIndex]);
+        const overscanHeight = overscan * itemMinHeightWithMargin;
+        const [[startIndex, endIndex], setIndexes] = useState(() => {
+            const normalizedInitialIndex = normalizeValue(MIN_INDEX, initialIndex, maxIndex);
+
+            return [normalizedInitialIndex, normalizedInitialIndex];
+        });
         const topRef = useRef(null);
         const bottomRef = useRef(null);
         const variables = useRef({
             cache: [],
             step: () => {},
-            scrollToIndex: initialIndex ? { index: initialIndex, alignToTop: initialAlignToTop } : null,
+            scrollToIndex: startIndex ? { index: startIndex, alignToTop: initialAlignToTop } : null,
             scrollCompensationEndIndex: null
         });
         const normalizedStartIndex = normalizeValue(MIN_INDEX, startIndex, maxIndex);
@@ -73,7 +78,6 @@ const ViewPortList = React.forwardRef(
 
         variables.current.step = () => {
             const viewPortRect = viewPortRef && viewPortRef.current && viewPortRef.current.getBoundingClientRect();
-            const overscanHeight = overscan * itemMinHeightWithMargin;
             const topLimit =
                 (viewPortRect ? normalizeValue(0, viewPortRect.top, document.documentElement.clientHeight) : 0) -
                 overscanHeight;
@@ -97,7 +101,7 @@ const ViewPortList = React.forwardRef(
                     index = startIndex;
                     element = topRef.current.nextSibling;
 
-                    while (index <= targetIndex && element !== bottomRef.current) {
+                    while (element !== bottomRef.current) {
                         if (index === targetIndex) {
                             element.scrollIntoView(variables.current.scrollToIndex.alignToTop);
                             variables.current.scrollToIndex = null;
@@ -116,7 +120,6 @@ const ViewPortList = React.forwardRef(
                 nextEndIndex = targetIndex + maxItemsCountInViewPort;
             } else if (firstElementRect.top >= bottomLimit) {
                 diff = firstElementRect.top - bottomLimit;
-
                 nextEndIndex = startIndex;
 
                 while (diff >= 0 && nextEndIndex > MIN_INDEX) {
@@ -127,7 +130,6 @@ const ViewPortList = React.forwardRef(
                 nextStartIndex = nextEndIndex - maxItemsCountInViewPort;
             } else if (lastElementRect.bottom + marginBottom <= topLimit) {
                 diff = topLimit - lastElementRect.bottom + marginBottom;
-
                 nextStartIndex = endIndex;
 
                 while (diff >= 0 && nextStartIndex < maxIndex) {

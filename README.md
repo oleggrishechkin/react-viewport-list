@@ -6,13 +6,10 @@
 
 ### Virtual List for items with dynamic height
 
-- Simple API like `.map()` (no `ref`, no `style` required)
+- Simple API like `.map()` (no item `ref`/`style` no list `width`/`height` required)
 - Works perfectly with _Flexbox_ and _Grid_ (no `pisition: absolute`)
-- No list `width`/`height` props required
-- Support scroll to index
-- No external cache
-- Fast
-- Lightweight
+- Supports scroll to index
+- Lightweight (1.5kb minified+gzipped)
 
 Try 100k list [demo](https://oleggrishechkin.github.io/react-viewport-list)
 
@@ -31,10 +28,10 @@ import React from 'react';
 import ViewPortList from 'react-viewport-list';
  
 const ItemsList = ({ items }) => (
-    <div>
+    <div className="scroll-container">
         <ViewPortList items={items} itemMinHeight={40} marginBottom={8}>
             {(items) => (
-                <div key={items.id}>
+                <div key={items.id} className="item">
                     {items.title}
                 </div>
             )}
@@ -60,7 +57,7 @@ name                 |type                |default |description
 
 ## Methods
 
-#### scrollToIndex
+### scrollToIndex
 
 Params
 
@@ -68,6 +65,37 @@ name          |type          |default|description
 --------------|--------------|-------|-----------------------------------------------------------------------------------------------
 **index**     |number        |-1     |Item index for scroll
 **alignToTop**|bool or object|true   |[scrollIntoView](https://developer.mozilla.org/ru/docs/Web/API/Element/scrollIntoView) argument
+
+Usage
+
+```javascript
+import React, { useRef } from 'react';
+import ViewPortList from 'react-viewport-list';
+ 
+const ItemsList = ({ items }) => {
+    const listRef = useRef(null);
+
+    return (
+        <div className="scroll-container">
+            <ViewPortList
+                ref={listRef}
+                items={items}
+                itemMinHeight={40}
+                marginBottom={8}
+            >
+                {(item) => (
+                    <div key={item.id} className="item">
+                        {item.title}
+                    </div>
+                )}
+            </ViewPortList>
+            <button className="up-button" onClick={() => listRef.current.scrollToIndex(0)} />
+        </div>
+    );
+};
+
+export default ItemsList;
+```
 
 ## Performance
 
@@ -81,13 +109,13 @@ You should add `will-change: transform` to container styles for better performan
 
 ## Limitations
 
-- #### `overflow-anchor`
+- ### `overflow-anchor`
 
     If you are using `overflor-anchor` css property for container or items, scroll may lagging (jumping). Don't use this property.
     
-    Fast scrolling up impossible (if items not cached yet) for browsers which unsupported `overflow-anchor` css property because list sets scrollTop for prevent scroll lagging (jumping)
+    Fast scrolling up impossible (if items not cached yet) for browsers which unsupported `overflow-anchor` css property because list sets scrollTop to prevent scroll lagging (jumping)
 
-- #### `margin`
+- ### `margin`
 
     You should use only `margin-bottom` for items, and provide it to **ViewPortList** props. Don't use `margin-top`
  
@@ -97,30 +125,34 @@ You should add `will-change: transform` to container styles for better performan
     }    
     ```
 
+- ### `css child selectors`
+
+    Be accurate with css child selectors (and pseudo-classes) for items styling. **ViewPortList** adds blank `div`'s on list top and bottom
+
 ## Advanced Usage
 
-#### Grouping
+### Grouping
 
-**ViewPortList** is only items without container
+**ViewPortList** is only items (without container)
 
 ```javascript
 import React from 'react';
 import ViewPortList from 'react-viewport-list';
 
 const ItemsList = ({ keyItems, items }) => (
-    <div>
-        <span>{'Key Items'}</span>
+    <div className="scroll-container">
+        <span className="group-title">{'Key Items'}</span>
         <ViewPortList items={keyItems} itemMinHeight={60} marginBottom={8}>
             {(item) => (
-                <div key={item.id}>
+                <div key={item.id} className="key-item">
                     {item.title}
                 </div>
             )}
         </ViewPortList>
-        <span>{'Items'}</span>
+        <span className="group-title">{'Items'}</span>
         <ViewPortList items={items} itemMinHeight={40} marginBottom={8}>
             {(item) => (
-                <div key={item.id}>
+                <div key={item.id} className="item">
                     {item.title}
                 </div>
             )}
@@ -131,40 +163,7 @@ const ItemsList = ({ keyItems, items }) => (
 export default ItemsList;
 ```
 
-#### Using `scrollToIndex`
-
-You should set **ViewPortList** `ref` prop and use `scrollToIndex` method
-
-```javascript
-import React, { useRef } from 'react';
-import ViewPortList from 'react-viewport-list';
- 
-const ItemsList = ({ items }) => {
-    const listRef = useRef(null);
-
-    return (
-        <div>
-            <ViewPortList
-                ref={listRef}
-                items={items}
-                itemMinHeight={40}
-                marginBottom={8}
-            >
-                {(item) => (
-                    <div key={item.id}>
-                        {item.title}
-                    </div>
-                )}
-            </ViewPortList>
-            <button onClick={() => listRef.current.scrollToIndex(0)} />
-        </div>
-    );
-};
-
-export default ItemsList;
-```
-
-#### Sorting
+### Sorting
 
 You can use _[React Sortable HOC](https://github.com/clauderic/react-sortable-hoc)_
 
@@ -178,10 +177,10 @@ const SortableItem = SortableElement((props) => <div {...props} />);
 const SortableList = SortableContainer((props) => <div {...props} />);
  
 const ItemsList = ({ items, onSortEnd }) => (
-    <SortableList onSortEnd={onSortEnd}>
+    <SortableList className="scroll-container" onSortEnd={onSortEnd}>
         <ViewPortList items={items} itemMinHeight={40} marginBottom={8}>
             {(item, index) => (
-                <SortableItem key={index} index={index}>
+                <SortableItem key={index} index={index} className="item">
                     {item.title}
                 </SortableItem>
             )}
