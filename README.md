@@ -7,7 +7,7 @@
 ### Virtual List for items with dynamic height
 
 - Simple API like `.map()` (no item `ref`/`style` no list `width`/`height` required)
-- Works perfectly with _Flexbox_ and _Grid_ (no `pisition: absolute`)
+- Works perfectly with _Flexbox_ (no `pisition: absolute`)
 - Supports scroll to index
 - Lightweight (1.5kb minified+gzipped)
 
@@ -15,13 +15,13 @@ Try 100k list [demo](https://oleggrishechkin.github.io/react-viewport-list)
 
 ## Getting Started
 
-#### Installation:
+### Installation:
 
 ```shell script
 npm install --save react-viewport-list
 ```
 
-#### Basic Usage:
+### Basic Usage:
 
 ```javascript
 import React from 'react';
@@ -190,6 +190,7 @@ const ItemsList = ({ items, onSortEnd }) => (
 
 export default ItemsList;
 ```
+
 ## Alternatives
 
 - [react-window](https://github.com/bvaughn/react-window)

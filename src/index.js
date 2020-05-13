@@ -16,7 +16,13 @@ const getStyle = (height) => ({
 
 const MIN_INDEX = 0;
 
-const IS_OVERFLOW_ANCHOR_SUPPORTED = CSS.supports('overflow-anchor: auto');
+const IS_OVERFLOW_ANCHOR_SUPPORTED = (() => {
+    try {
+        return window.CSS.supports('overflow-anchor: auto');
+    } catch (error) {
+        return false;
+    }
+})();
 
 const ViewPortList = React.forwardRef(
     (
