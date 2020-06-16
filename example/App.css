@@ -24,18 +24,20 @@
     display: flex;
     flex: 1 1 auto;
     width: 100%;
+    height: 100%;
     flex-direction: column;
-    padding: 0 32px;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
     align-items: center;
 }
 
 .list {
+    padding: 0 32px;
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
     max-width: 1024px;
     box-sizing: border-box;
     will-change: transform;
@@ -56,4 +58,38 @@
 .item.odd {
     align-self: flex-end;
     background-color: rgb(10,132, 255);
+}
+
+.horizontal-main {
+    box-sizing: border-box;
+    display: flex;
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    flex-direction: row;
+    overflow: hidden;
+    align-items: center;
+}
+
+.horizontal-list {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    align-items: center;
+    box-sizing: border-box;
+    will-change: transform;
+}
+
+.horizontal-item {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    padding: 16px;
+    background-color: rgb(44, 44, 46);
+    overflow: hidden;
+    height: 68px;
+    min-width: 68px;
+    margin-right: 16px;
 }

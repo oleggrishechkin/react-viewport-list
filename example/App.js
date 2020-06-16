@@ -3,6 +3,8 @@ import { loremIpsum } from 'lorem-ipsum';
 import ViewPortList from '../src';
 import './App.css';
 
+const HORIZONTAL = false;
+
 const App = () => {
     const ref = useRef(null);
     const listRef = useRef(null);
@@ -17,7 +19,6 @@ const App = () => {
 
         return result;
     });
-
     useEffect(() => {
         window.scrollToIndex = (index, alignToTop) => listRef.current.scrollToIndex(index, alignToTop);
     }, []);
@@ -34,11 +35,21 @@ const App = () => {
                     {'React ViewPort List'}
                 </a>
             </header>
-            <main className="main" ref={ref}>
-                <div className="list">
-                    <ViewPortList ref={listRef} viewPortRef={ref} items={items} itemMinHeight={68} marginBottom={16}>
+            <main className={`${HORIZONTAL ? 'horizontal-' : ''}main`} ref={ref}>
+                <div className={`${HORIZONTAL ? 'horizontal-' : ''}list`}>
+                    <ViewPortList
+                        ref={listRef}
+                        viewportRef={ref}
+                        items={items}
+                        itemMinSize={68}
+                        margin={16}
+                        axis={HORIZONTAL ? 'x' : 'y'}
+                    >
                         {(item, index) => (
-                            <div key={index} className={`item${index % 2 === 0 ? '' : ' odd'}`}>
+                            <div
+                                key={index}
+                                className={`${HORIZONTAL ? 'horizontal-' : ''}item${index % 2 === 0 ? '' : ' odd'}`}
+                            >
                                 {`${index + 1} Item\n${item.title}`}
                             </div>
                         )}

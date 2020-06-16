@@ -1,7 +1,7 @@
 {
   "name": "react-viewport-list",
-  "version": "2.1.2",
-  "description": "Virtual List for items with dynamic height",
+  "version": "3.0.0",
+  "description": "Virtual List for items with dynamic height/width",
   "keywords": [
     "react",
     "virualization",
