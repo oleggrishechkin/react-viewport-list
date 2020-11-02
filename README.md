@@ -5,6 +5,10 @@
 [![NPM total downloads](https://img.shields.io/npm/dt/react-viewport-list.svg?style=flat)](https://npmcharts.com/compare/react-viewport-list?minimal=true)
 [![NPM monthly downloads](https://img.shields.io/npm/dm/react-viewport-list.svg?style=flat)](https://npmcharts.com/compare/react-viewport-list?minimal=true)
 
+>If your application renders long lists of data (hundreds or thousands of rows), we recommended using a technique known as “windowing”. This technique only renders a small subset of your rows at any given time, and can dramatically reduce the time it takes to re-render the components as well as the number of DOM nodes created. 
+ 
+\- [React.js documentation](https://reactjs.org/docs/optimizing-performance.html#virtualize-long-lists)
+
 ## Virtual List for items with dynamic height/width
 
 - Simple API like [`.map()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map) (no item `ref`/`style` or list `width`/`height` required)
