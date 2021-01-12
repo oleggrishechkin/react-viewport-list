@@ -1,6 +1,6 @@
 {
   "name": "react-viewport-list",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Virtual List for items with dynamic height/width",
   "keywords": [
     "react",
@@ -11,7 +11,7 @@
     "react-list",
     "react-virtual-list"
   ],
-  "homepage": "https://oleggrishechkin.github.io/react-viewport-list",
+  "homepage": "https://codesandbox.io/s/react-viewport-list-xw2rt",
   "license": "MIT",
   "author": {
     "name": "Oleg Grishechkin",
@@ -27,30 +27,13 @@
     "url": "https://github.com/oleggrishechkin/react-viewport-list"
   },
   "scripts": {
-    "start": "cross-env NODE_ENV=development webpack-dev-server --mode development --hot",
-    "build": "rimraf dist && cross-env NODE_ENV=production webpack --mode production",
-    "serve": "serve -s dist",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist",
     "prepublish": "rimraf lib && babel src -d lib"
   },
   "devDependencies": {
     "@babel/cli": "^7.12.1",
-    "babel-loader": "^8.1.0",
     "configs-og": "^1.0.0",
-    "cross-env": "^7.0.2",
-    "css-loader": "^5.0.0",
-    "gh-pages": "^3.1.0",
-    "html-webpack-plugin": "^4.5.0",
-    "lorem-ipsum": "^2.0.3",
     "react": "^17.0.1",
-    "react-dom": "^17.0.1",
-    "rimraf": "^3.0.2",
-    "serve": "^11.3.2",
-    "style-loader": "^2.0.0",
-    "webpack": "^5.3.2",
-    "webpack-cli": "^3.3.12",
-    "webpack-dev-server": "^3.11.0"
+    "rimraf": "^3.0.2"
   },
   "peerDependencies": {
     "react": ">=16.8.0"

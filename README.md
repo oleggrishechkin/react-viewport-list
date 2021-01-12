@@ -18,7 +18,7 @@
 - Vertical and Horizontal lists
 - Lightweight (1.5kb minified+gzipped)
 
-Try 100k list [demo](https://oleggrishechkin.github.io/react-viewport-list)
+Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
 
 ## Getting Started
 
