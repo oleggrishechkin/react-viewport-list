@@ -1,6 +1,6 @@
 {
   "name": "react-viewport-list",
-  "version": "3.0.2",
+  "version": "4.0.0",
   "description": "Virtual List for items with dynamic height/width",
   "keywords": [
     "react",
@@ -19,21 +19,29 @@
     "url": "https://github.com/oleggrishechkin"
   },
   "files": [
-    "lib/index.js"
+    "lib/index.js",
+    "lib/index.d.ts"
   ],
   "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "repository": {
     "type": "git",
     "url": "https://github.com/oleggrishechkin/react-viewport-list"
   },
   "scripts": {
-    "prepublish": "rimraf lib && babel src -d lib"
+    "prepublish": "rimraf lib && babel --out-file lib/index.js src/index.tsx && tsc"
   },
   "devDependencies": {
     "@babel/cli": "^7.12.1",
-    "configs-og": "^1.0.0",
+    "@babel/preset-typescript": "^7.13.0",
+    "@types/react": "^17.0.2",
+    "@typescript-eslint/eslint-plugin": "^4.16.1",
+    "@typescript-eslint/parser": "^4.16.1",
+    "configs-og": "^2.0.7",
+    "eslint": "^7.21.0",
     "react": "^17.0.1",
-    "rimraf": "^3.0.2"
+    "rimraf": "^3.0.2",
+    "typescript": "^4.2.2"
   },
   "peerDependencies": {
     "react": ">=16.8.0"
@@ -48,23 +56,6 @@
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
-    ]
-  },
-  "eslintConfig": {
-    "extends": "./node_modules/configs-og/.eslintrc.js"
-  },
-  "prettier": "configs-og/prettier.config.js",
-  "babel": {
-    "extends": "configs-og/babel.config.js"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
-  "lint-staged": {
-    "*.(js|jsx)": [
-      "eslint --quiet"
     ]
   }
 }

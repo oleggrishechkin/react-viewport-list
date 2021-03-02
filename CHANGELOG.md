@@ -1,3 +1,9 @@
+# 4.0.0 (02 March 2021)
+
+## Breaking
+
+- Add TypeScript
+
 # 3.0.2 (12 January 2021)
 
 ## Updates

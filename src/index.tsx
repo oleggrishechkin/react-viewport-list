@@ -1,30 +1,62 @@
-import React, { useState, useRef, useEffect, Fragment, useImperativeHandle, useLayoutEffect, useMemo } from 'react';
+import {
+    useState,
+    useRef,
+    useEffect,
+    Fragment,
+    useImperativeHandle,
+    useLayoutEffect,
+    useMemo,
+    MutableRefObject,
+    ReactNode,
+    forwardRef
+} from 'react';
 
-const normalizeValue = (min, value, max) => Math.max(Math.min(value, max), min);
+interface NormalizeValue {
+    (min: number, value: number, max: number): number;
+}
 
-const getStyleFabric = (axis = 'y') => {
-    const propName = {
-        minHeight: axis === 'y' ? 'minHeight' : 'minWidth',
-        height: axis === 'y' ? 'height' : 'width',
-        maxHeight: axis === 'y' ? 'maxHeight' : 'maxWidth'
-    };
+const normalizeValue: NormalizeValue = (min, value, max) => Math.max(Math.min(value, max), min);
 
-    return (size) => ({
-        [propName.minHeight]: size,
-        [propName.height]: size,
-        [propName.maxHeight]: size,
-        overflowAnchor: 'none',
-        pointerEvents: 'none',
-        userSelect: 'none',
-        padding: 0,
-        margin: 0,
-        border: 'none'
-    });
-};
+export type Axis = 'x' | 'y';
+
+interface Style {
+    minHeight?: number;
+    height?: number;
+    maxHeight?: number;
+    minWidth?: number;
+    width?: number;
+    maxWidth?: number;
+    overflowAnchor: 'none';
+    pointerEvents: 'none';
+    userSelect: 'none';
+    padding: 0;
+    margin: 0;
+    border: 'none';
+}
+
+interface GetStyle {
+    (size: number): Style;
+}
+
+interface GetStyleFabric {
+    (axis: Axis): GetStyle;
+}
+
+const getStyleFabric: GetStyleFabric = (axis = 'y') => (size) => ({
+    [axis === 'y' ? 'minHeight' : 'minWidth']: size,
+    [axis === 'y' ? 'height' : 'width']: size,
+    [axis === 'y' ? 'maxHeight' : 'maxWidth']: size,
+    overflowAnchor: 'none',
+    pointerEvents: 'none',
+    userSelect: 'none',
+    padding: 0,
+    margin: 0,
+    border: 'none'
+});
 
 const MIN_INDEX = 0;
 
-const IS_OVERFLOW_ANCHOR_SUPPORTED = (() => {
+const IS_OVERFLOW_ANCHOR_SUPPORTED = ((): boolean => {
     try {
         return window.CSS.supports('overflow-anchor: auto');
     } catch (error) {
@@ -32,7 +64,23 @@ const IS_OVERFLOW_ANCHOR_SUPPORTED = (() => {
     }
 })();
 
-const ViewportList = React.forwardRef(
+export interface ViewportListRef {
+    scrollToIndex: (index?: number, alignTop?: boolean) => void;
+}
+
+export interface ViewportListProps {
+    viewportRef?: MutableRefObject<HTMLElement> | null;
+    items?: Array<any>;
+    itemMinSize: number;
+    margin?: number;
+    overscan?: number;
+    axis?: Axis;
+    initialIndex?: number;
+    initialAlignToTop?: boolean;
+    children: (item: any, index: number) => ReactNode;
+}
+
+const ViewportList = forwardRef<ViewportListRef, ViewportListProps>(
     (
         {
             viewportRef = null,
@@ -47,7 +95,16 @@ const ViewportList = React.forwardRef(
         },
         ref
     ) => {
-        const { propName, getStyle } = useMemo(
+        const { propName, getStyle } = useMemo<{
+            propName: {
+                top: 'top' | 'left';
+                bottom: 'bottom' | 'right';
+                clientHeight: 'clientHeight' | 'clientWidth';
+                scrollTop: 'scrollTop' | 'scrollLeft';
+                overflowY: 'overflowY' | 'overflowX';
+            };
+            getStyle: GetStyle;
+        }>(
             () => ({
                 propName: {
                     top: axis === 'y' ? 'top' : 'left',
@@ -63,22 +120,27 @@ const ViewportList = React.forwardRef(
         const maxIndex = items.length - 1;
         const itemMinSizeWithMargin = itemMinSize + margin;
         const overscanSize = overscan * itemMinSizeWithMargin;
-        const [[startIndex, endIndex], setIndexes] = useState(() => {
+        const [[startIndex, endIndex], setIndexes] = useState<[number, number]>(() => {
             const normalizedInitialIndex = normalizeValue(MIN_INDEX, initialIndex, maxIndex);
 
             return [normalizedInitialIndex, normalizedInitialIndex];
         });
-        const topRef = useRef(null);
-        const bottomRef = useRef(null);
-        const variables = useRef({
+        const topRef = useRef<HTMLDivElement>(null);
+        const bottomRef = useRef<HTMLDivElement>(null);
+        const variables = useRef<{
+            cache: Array<number>;
+            step: () => void;
+            scrollToIndex: { index: number; alignToTop: boolean } | null;
+            scrollCompensationEndIndex: number | null;
+        }>({
             cache: [],
-            step: () => {},
+            step: () => null,
             scrollToIndex: startIndex ? { index: startIndex, alignToTop: initialAlignToTop } : null,
             scrollCompensationEndIndex: null
         });
         const normalizedStartIndex = normalizeValue(MIN_INDEX, startIndex, maxIndex);
         const normalizedEndIndex = normalizeValue(normalizedStartIndex, endIndex, maxIndex);
-        const topStyle = useMemo(
+        const topStyle = useMemo<Style>(
             () =>
                 getStyle(
                     variables.current.cache
@@ -87,7 +149,7 @@ const ViewportList = React.forwardRef(
                 ),
             [normalizedStartIndex, itemMinSizeWithMargin, getStyle]
         );
-        const bottomStyle = useMemo(
+        const bottomStyle = useMemo<Style>(
             () =>
                 getStyle(
                     variables.current.cache
@@ -96,7 +158,7 @@ const ViewportList = React.forwardRef(
                 ),
             [normalizedEndIndex, maxIndex, itemMinSizeWithMargin, getStyle]
         );
-        const slicedItems = useMemo(
+        const slicedItems = useMemo<Array<ReactNode>>(
             () =>
                 items
                     .slice(normalizedStartIndex, normalizedEndIndex + 1)
@@ -105,7 +167,7 @@ const ViewportList = React.forwardRef(
         );
 
         variables.current.step = () => {
-            const viewportRect = viewportRef && viewportRef.current && viewportRef.current.getBoundingClientRect();
+            const viewportRect = viewportRef?.current?.getBoundingClientRect();
             const topLimit =
                 (viewportRect
                     ? normalizeValue(0, viewportRect[propName.top], document.documentElement[propName.clientHeight])
@@ -114,8 +176,8 @@ const ViewportList = React.forwardRef(
                 (viewportRect
                     ? normalizeValue(0, viewportRect[propName.bottom], document.documentElement[propName.clientHeight])
                     : document.documentElement[propName.clientHeight]) + overscanSize;
-            const topElementRect = topRef.current.nextSibling.getBoundingClientRect();
-            const bottomElementRect = bottomRef.current.previousSibling.getBoundingClientRect();
+            const topElementRect = (topRef.current?.nextSibling as Element)?.getBoundingClientRect();
+            const bottomElementRect = (bottomRef.current?.previousSibling as Element)?.getBoundingClientRect();
             const maxItemsCountInViewPort = Math.ceil((bottomLimit - topLimit) / itemMinSizeWithMargin);
             let nextStartIndex = startIndex;
             let nextEndIndex = endIndex;
@@ -123,14 +185,18 @@ const ViewportList = React.forwardRef(
             let index;
             let element;
 
+            if (!topElementRect || !bottomElementRect) {
+                return;
+            }
+
             if (variables.current.scrollToIndex) {
                 const targetIndex = normalizeValue(MIN_INDEX, variables.current.scrollToIndex.index, maxIndex);
 
                 if (targetIndex >= startIndex && targetIndex <= endIndex) {
                     index = startIndex;
-                    element = topRef.current.nextSibling;
+                    element = topRef.current?.nextSibling as Element;
 
-                    while (element !== bottomRef.current) {
+                    while (element && element !== bottomRef.current) {
                         if (index === targetIndex) {
                             element.scrollIntoView(variables.current.scrollToIndex.alignToTop);
                             variables.current.scrollToIndex = null;
@@ -138,7 +204,7 @@ const ViewportList = React.forwardRef(
                             break;
                         }
 
-                        element = element.nextSibling;
+                        element = element.nextSibling as Element;
                         ++index;
                     }
 
@@ -195,11 +261,11 @@ const ViewportList = React.forwardRef(
 
             if (nextStartIndex !== startIndex || nextEndIndex !== endIndex) {
                 index = startIndex;
-                element = topRef.current.nextSibling;
+                element = topRef.current?.nextSibling as Element;
 
-                while (index <= endIndex && element !== bottomRef.current) {
+                while (!!element && index <= endIndex && element !== bottomRef.current) {
                     variables.current.cache[index++] = element[propName.clientHeight] - itemMinSize;
-                    element = element.nextSibling;
+                    element = element.nextSibling as Element;
                 }
 
                 setIndexes([nextStartIndex, nextEndIndex]);
@@ -228,26 +294,26 @@ const ViewportList = React.forwardRef(
             }
 
             let index = startIndex;
-            let element = topRef.current.nextSibling;
+            let element = topRef.current?.nextSibling as Element;
             let sizeDiff = 0;
 
             while (index < variables.current.scrollCompensationEndIndex && element !== bottomRef.current) {
                 sizeDiff += element[propName.clientHeight] - (variables.current.cache[index] || 0) - itemMinSize;
-                element = element.nextSibling;
+                element = element.nextSibling as Element;
                 ++index;
             }
 
             if (viewportRef && sizeDiff) {
                 viewportRef.current.style[propName.overflowY] = 'hidden';
                 viewportRef.current[propName.scrollTop] += sizeDiff;
-                viewportRef.current.style[propName.overflowY] = null;
+                viewportRef.current.style[propName.overflowY] = '';
             }
 
             variables.current.scrollCompensationEndIndex = null;
         }, [viewportRef, startIndex, itemMinSize, propName]);
 
         useEffect(() => {
-            let frameId = null;
+            let frameId: number;
             const frame = () => {
                 frameId = requestAnimationFrame(frame);
                 variables.current.step();
@@ -255,7 +321,9 @@ const ViewportList = React.forwardRef(
 
             frame();
 
-            return () => cancelAnimationFrame(frameId);
+            return () => {
+                cancelAnimationFrame(frameId);
+            };
         }, []);
 
         return (
