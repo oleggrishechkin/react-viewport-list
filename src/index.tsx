@@ -4,13 +4,22 @@ import {
     useEffect,
     Fragment,
     useImperativeHandle,
-    useLayoutEffect,
     useMemo,
     MutableRefObject,
     ReactNode,
     forwardRef,
     FC
 } from 'react';
+
+const MIN_INDEX = 0;
+
+const IS_OVERFLOW_ANCHOR_SUPPORTED = ((): boolean => {
+    try {
+        return window.CSS.supports('overflow-anchor: auto');
+    } catch (error) {
+        return false;
+    }
+})();
 
 interface NormalizeValue {
     (min: number, value: number, max: number): number;
@@ -19,6 +28,34 @@ interface NormalizeValue {
 const normalizeValue: NormalizeValue = (min, value, max) => Math.max(Math.min(value, max), min);
 
 export type Axis = 'x' | 'y';
+
+interface PropName {
+    minHeight: 'minHeight' | 'minWidth';
+    height: 'height' | 'width';
+    maxHeight: 'maxHeight' | 'maxWidth';
+    top: 'top' | 'left';
+    bottom: 'bottom' | 'right';
+    scrollHeight: 'scrollHeight' | 'scrollWidth';
+    clientHeight: 'clientHeight' | 'clientWidth';
+    scrollTop: 'scrollTop' | 'scrollLeft';
+    overflowY: 'overflowY' | 'overflowX';
+}
+
+interface GetPropName {
+    (axis: Axis): PropName;
+}
+
+const getPropName: GetPropName = (axis) => ({
+    minHeight: axis === 'y' ? 'minHeight' : 'minWidth',
+    height: axis === 'y' ? 'height' : 'width',
+    maxHeight: axis === 'y' ? 'maxHeight' : 'maxWidth',
+    top: axis === 'y' ? 'top' : 'left',
+    bottom: axis === 'y' ? 'bottom' : 'right',
+    scrollHeight: axis === 'y' ? 'scrollHeight' : 'scrollWidth',
+    clientHeight: axis === 'y' ? 'clientHeight' : 'clientWidth',
+    scrollTop: axis === 'y' ? 'scrollTop' : 'scrollLeft',
+    overflowY: axis === 'y' ? 'overflowY' : 'overflowX'
+});
 
 interface Style {
     minHeight?: number;
@@ -40,13 +77,13 @@ interface GetStyle {
 }
 
 interface GetStyleFabric {
-    (axis: Axis): GetStyle;
+    (propName: PropName): GetStyle;
 }
 
-const getStyleFabric: GetStyleFabric = (axis = 'y') => (size) => ({
-    [axis === 'y' ? 'minHeight' : 'minWidth']: size,
-    [axis === 'y' ? 'height' : 'width']: size,
-    [axis === 'y' ? 'maxHeight' : 'maxWidth']: size,
+const getStyleFabric: GetStyleFabric = (propName) => (size) => ({
+    [propName.minHeight]: size,
+    [propName.height]: size,
+    [propName.maxHeight]: size,
     overflowAnchor: 'none',
     pointerEvents: 'none',
     userSelect: 'none',
@@ -54,16 +91,6 @@ const getStyleFabric: GetStyleFabric = (axis = 'y') => (size) => ({
     margin: 0,
     border: 'none'
 });
-
-const MIN_INDEX = 0;
-
-const IS_OVERFLOW_ANCHOR_SUPPORTED = ((): boolean => {
-    try {
-        return window.CSS.supports('overflow-anchor: auto');
-    } catch (error) {
-        return false;
-    }
-})();
 
 export interface ScrollToIndex {
     (index?: number, alignTop?: boolean): void;
@@ -81,21 +108,13 @@ export interface ViewportListProps {
     overscan?: number;
     axis?: Axis;
     initialIndex?: number;
-    initialAlignToTop?: boolean;
+    initialAlignToTop?: boolean | ScrollIntoViewOptions;
     children: (item: any, index: number) => ReactNode;
-}
-
-interface PropName {
-    top: 'top' | 'left';
-    bottom: 'bottom' | 'right';
-    clientHeight: 'clientHeight' | 'clientWidth';
-    scrollTop: 'scrollTop' | 'scrollLeft';
-    overflowY: 'overflowY' | 'overflowX';
 }
 
 interface ScrollToIndexConfig {
     index: number;
-    alignToTop: boolean;
+    alignToTop: boolean | ScrollIntoViewOptions;
 }
 
 interface Frame {
@@ -106,7 +125,7 @@ interface Variables {
     cache: Array<number>;
     step: Frame;
     scrollToIndex: ScrollToIndexConfig | null;
-    scrollCompensationEndIndex: number | null;
+    needScroll: boolean;
 }
 
 const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, ViewportListProps>(
@@ -124,19 +143,8 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
         },
         ref
     ) => {
-        const { propName, getStyle } = useMemo<{ propName: PropName; getStyle: GetStyle }>(
-            () => ({
-                propName: {
-                    top: axis === 'y' ? 'top' : 'left',
-                    bottom: axis === 'y' ? 'bottom' : 'right',
-                    clientHeight: axis === 'y' ? 'clientHeight' : 'clientWidth',
-                    scrollTop: axis === 'y' ? 'scrollTop' : 'scrollLeft',
-                    overflowY: axis === 'y' ? 'overflowY' : 'overflowX'
-                },
-                getStyle: getStyleFabric(axis)
-            }),
-            [axis]
-        );
+        const propName = useMemo<PropName>(() => getPropName(axis), [axis]);
+        const getStyle = useMemo<GetStyle>(() => getStyleFabric(propName), [propName]);
         const maxIndex = items.length - 1;
         const itemMinSizeWithMargin = itemMinSize + margin;
         const overscanSize = overscan * itemMinSizeWithMargin;
@@ -145,13 +153,13 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
 
             return [normalizedInitialIndex, normalizedInitialIndex];
         });
-        const topRef = useRef<HTMLDivElement>(null);
-        const bottomRef = useRef<HTMLDivElement>(null);
+        const topRef = useRef<HTMLDivElement | null>(null);
+        const bottomRef = useRef<HTMLDivElement | null>(null);
         const variables = useRef<Variables>({
             cache: [],
             step: () => null,
             scrollToIndex: startIndex ? { index: startIndex, alignToTop: initialAlignToTop } : null,
-            scrollCompensationEndIndex: null
+            needScroll: false
         });
         const normalizedStartIndex = normalizeValue(MIN_INDEX, startIndex, maxIndex);
         const normalizedEndIndex = normalizeValue(normalizedStartIndex, endIndex, maxIndex);
@@ -211,7 +219,7 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
                     index = startIndex;
                     element = topRef.current?.nextSibling as Element;
 
-                    while (element && element !== bottomRef.current) {
+                    while (!!element && element !== bottomRef.current) {
                         if (index === targetIndex) {
                             element.scrollIntoView(variables.current.scrollToIndex.alignToTop);
                             variables.current.scrollToIndex = null;
@@ -236,7 +244,7 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
                     diff -= (variables.current.cache[--nextEndIndex] || 0) + itemMinSizeWithMargin;
                 }
 
-                variables.current.scrollCompensationEndIndex = startIndex;
+                variables.current.needScroll = true;
                 nextStartIndex = nextEndIndex - maxItemsCountInViewPort;
             } else if (bottomElementRect[propName.bottom] + margin <= topLimit) {
                 diff = topLimit - bottomElementRect[propName.bottom] + margin;
@@ -257,7 +265,7 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
                         diff -= (variables.current.cache[--nextStartIndex] || 0) + itemMinSizeWithMargin;
                     }
 
-                    variables.current.scrollCompensationEndIndex = startIndex;
+                    variables.current.needScroll = true;
                 }
 
                 if (bottomElementRect[propName.bottom] + margin <= bottomLimit) {
@@ -297,35 +305,22 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
             []
         );
 
-        useLayoutEffect(() => {
-            if (variables.current.scrollCompensationEndIndex === null) {
-                return;
-            }
+        if (!!viewportRef?.current && variables.current.needScroll && !IS_OVERFLOW_ANCHOR_SUPPORTED) {
+            const oldScroll = viewportRef.current[propName.scrollTop];
+            const oldScrollSize =
+                viewportRef.current[propName.scrollHeight] - viewportRef.current[propName.clientHeight];
 
-            if (!viewportRef || IS_OVERFLOW_ANCHOR_SUPPORTED) {
-                variables.current.scrollCompensationEndIndex = null;
+            setTimeout(() => {
+                const newScrollSize =
+                    viewportRef.current[propName.scrollHeight] - viewportRef.current[propName.clientHeight];
 
-                return;
-            }
+                if (oldScrollSize !== newScrollSize) {
+                    viewportRef.current[propName.scrollTop] = oldScroll + newScrollSize - oldScrollSize;
+                }
 
-            let index = startIndex;
-            let element = topRef.current?.nextSibling as Element;
-            let sizeDiff = 0;
-
-            while (index < variables.current.scrollCompensationEndIndex && element !== bottomRef.current) {
-                sizeDiff += element[propName.clientHeight] - (variables.current.cache[index] || 0) - itemMinSize;
-                element = element.nextSibling as Element;
-                ++index;
-            }
-
-            if (viewportRef && sizeDiff) {
-                viewportRef.current.style[propName.overflowY] = 'hidden';
-                viewportRef.current[propName.scrollTop] += sizeDiff;
-                viewportRef.current.style[propName.overflowY] = '';
-            }
-
-            variables.current.scrollCompensationEndIndex = null;
-        }, [viewportRef, startIndex, itemMinSize, propName]);
+                variables.current.needScroll = false;
+            });
+        }
 
         useEffect(() => {
             let frameId: number;
@@ -342,10 +337,10 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
         }, []);
 
         return (
-            <Fragment key="ViewPortList">
-                <div key="ViewPortListTop" ref={topRef} style={topStyle} />
+            <Fragment>
+                <div ref={topRef} style={topStyle} />
                 {slicedItems}
-                <div key="ViewPortListBottom" ref={bottomRef} style={bottomStyle} />
+                <div ref={bottomRef} style={bottomStyle} />
             </Fragment>
         );
     }

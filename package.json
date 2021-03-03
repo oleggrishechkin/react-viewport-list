@@ -1,6 +1,6 @@
 {
   "name": "react-viewport-list",
-  "version": "4.0.2",
+  "version": "4.0.3",
   "description": "Virtual List for items with dynamic height/width",
   "keywords": [
     "react",
