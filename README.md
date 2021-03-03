@@ -51,17 +51,17 @@ Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
 
 ## Props
 
-name                 |type                |default |description
----------------------|--------------------|--------|---------------------------------------------------------------------------------------------------------------------------------
-**viewportRef**      |object              |null    |Viewport `ref` object.<br>Required for browsers which unsupported `overflow-anchor` css property (like _Safari_)
-**items**            |array               |[]      |Array of items
-**itemMinSize**      |number              |required|Item min height (or min width for _x_ **axis**) in px
-**margin**           |number              |0       |Item margin bottom (or margin right for _x_ **axis**) in px.<br>You should still set `margin-bottom` (or `margin-right` for _x_ **axis**) in item styles
-**overscan**         |number              |1       |Count of "overscan" items
-**axis**             |_y_ or _x_          |_y_     |Scroll axis<br>_y_ - vertical, _x_ - horizontal
-**initialIndex**     |number              |-1      |Initial index of item in viewport
-**initialAlignToTop**|bool                |true    |[scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) second argument.<br>Used with **initialIndex**)
-**children**         |(item, index) => jsx|required|Item render function.<br>Similar to [`.map()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map) callback
+name                 |type                                    |default |description
+---------------------|----------------------------------------|--------|---------------------------------------------------------------------------------------------------------------------------------
+**viewportRef**      |MutableRefObject<HTMLElement>           |null    |Viewport `ref` object.<br>Required for browsers which unsupported `overflow-anchor` css property (like _Safari_)
+**items**            |Array<any>                              |[]      |Array of items
+**itemMinSize**      |number                                  |required|Item min height (or min width for 'x' **axis**) in px
+**margin**           |number                                  |0       |Item margin bottom (or margin right for 'x' **axis**) in px.<br>You should still set `margin-bottom` (or `margin-right` for 'x' **axis**) in item styles
+**overscan**         |number                                  |1       |Count of "overscan" items
+**axis**             |'y' / 'x'                               |'y'     |Scroll axis<br>'y' - vertical, 'x' - horizontal
+**initialIndex**     |number                                  |-1      |Initial index of item in viewport
+**initialAlignToTop**|boolean                                 |true    |[scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) second argument.<br>Used with **initialIndex**)
+**children**         |(item: any, index: number) => ReactNode |required|Item render function.<br>Similar to [`.map()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map) callback
 
 ## Methods
 
@@ -72,7 +72,7 @@ name                 |type                |default |description
     name          |type          |default|description
     --------------|--------------|-------|-----------------------------------------------------------------------------------------------
     **index**     |number        |-1     |Item index for scroll
-    **alignToTop**|bool or object|true   |[scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) second argument
+    **alignToTop**|boolean       |true   |[scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) second argument
     
     **Usage**
     
@@ -125,7 +125,7 @@ You should add `will-change: transform` to a container styles for better perform
 
 - ### margin
 
-    You should use only `margin-bottom` (or `margin-right` for _x_ **axis**)for items, and provide it to **ViewportList** props. Don't use `margin-top` (or `margin-left` for _x_ **axis**)
+    You should use only `margin-bottom` (or `margin-right` for 'x' **axis**)for items, and provide it to **ViewportList** props. Don't use `margin-top` (or `margin-left` for 'x' **axis**)
  
     ```css
     .item {

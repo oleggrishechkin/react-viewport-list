@@ -1,6 +1,6 @@
 {
   "name": "react-viewport-list",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Virtual List for items with dynamic height/width",
   "keywords": [
     "react",
@@ -29,15 +29,13 @@
     "url": "https://github.com/oleggrishechkin/react-viewport-list"
   },
   "scripts": {
-    "prepublish": "rimraf lib && babel --out-file lib/index.js src/index.tsx && tsc"
+    "prepublish": "rimraf lib && tsc"
   },
   "devDependencies": {
-    "@babel/cli": "^7.12.1",
-    "@babel/preset-typescript": "^7.13.0",
     "@types/react": "^17.0.2",
     "@typescript-eslint/eslint-plugin": "^4.16.1",
     "@typescript-eslint/parser": "^4.16.1",
-    "configs-og": "^2.0.7",
+    "configs-og": "^2.0.14",
     "eslint": "^7.21.0",
     "react": "^17.0.1",
     "rimraf": "^3.0.2",
@@ -56,6 +54,22 @@
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "./node_modules/configs-og/.eslintrc.js"
+    ]
+  },
+  "prettier": "configs-og/prettier.config.js",
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.(js|jsx|ts|tsx)": [
+      "eslint --quiet"
     ]
   }
 }

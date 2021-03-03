@@ -8,7 +8,8 @@ import {
     useMemo,
     MutableRefObject,
     ReactNode,
-    forwardRef
+    forwardRef,
+    FC
 } from 'react';
 
 interface NormalizeValue {
@@ -64,8 +65,12 @@ const IS_OVERFLOW_ANCHOR_SUPPORTED = ((): boolean => {
     }
 })();
 
+export interface ScrollToIndex {
+    (index?: number, alignTop?: boolean): void;
+}
+
 export interface ViewportListRef {
-    scrollToIndex: (index?: number, alignTop?: boolean) => void;
+    scrollToIndex: ScrollToIndex;
 }
 
 export interface ViewportListProps {
@@ -80,7 +85,31 @@ export interface ViewportListProps {
     children: (item: any, index: number) => ReactNode;
 }
 
-const ViewportList = forwardRef<ViewportListRef, ViewportListProps>(
+interface PropName {
+    top: 'top' | 'left';
+    bottom: 'bottom' | 'right';
+    clientHeight: 'clientHeight' | 'clientWidth';
+    scrollTop: 'scrollTop' | 'scrollLeft';
+    overflowY: 'overflowY' | 'overflowX';
+}
+
+interface ScrollToIndexConfig {
+    index: number;
+    alignToTop: boolean;
+}
+
+interface Frame {
+    (): void;
+}
+
+interface Variables {
+    cache: Array<number>;
+    step: Frame;
+    scrollToIndex: ScrollToIndexConfig | null;
+    scrollCompensationEndIndex: number | null;
+}
+
+const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, ViewportListProps>(
     (
         {
             viewportRef = null,
@@ -95,16 +124,7 @@ const ViewportList = forwardRef<ViewportListRef, ViewportListProps>(
         },
         ref
     ) => {
-        const { propName, getStyle } = useMemo<{
-            propName: {
-                top: 'top' | 'left';
-                bottom: 'bottom' | 'right';
-                clientHeight: 'clientHeight' | 'clientWidth';
-                scrollTop: 'scrollTop' | 'scrollLeft';
-                overflowY: 'overflowY' | 'overflowX';
-            };
-            getStyle: GetStyle;
-        }>(
+        const { propName, getStyle } = useMemo<{ propName: PropName; getStyle: GetStyle }>(
             () => ({
                 propName: {
                     top: axis === 'y' ? 'top' : 'left',
@@ -127,12 +147,7 @@ const ViewportList = forwardRef<ViewportListRef, ViewportListProps>(
         });
         const topRef = useRef<HTMLDivElement>(null);
         const bottomRef = useRef<HTMLDivElement>(null);
-        const variables = useRef<{
-            cache: Array<number>;
-            step: () => void;
-            scrollToIndex: { index: number; alignToTop: boolean } | null;
-            scrollCompensationEndIndex: number | null;
-        }>({
+        const variables = useRef<Variables>({
             cache: [],
             step: () => null,
             scrollToIndex: startIndex ? { index: startIndex, alignToTop: initialAlignToTop } : null,
@@ -314,7 +329,7 @@ const ViewportList = forwardRef<ViewportListRef, ViewportListProps>(
 
         useEffect(() => {
             let frameId: number;
-            const frame = () => {
+            const frame: Frame = () => {
                 frameId = requestAnimationFrame(frame);
                 variables.current.step();
             };
