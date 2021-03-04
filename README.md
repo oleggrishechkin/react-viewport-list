@@ -1,6 +1,7 @@
 # React ViewPort List
 
 [![NPM version](https://img.shields.io/npm/v/react-viewport-list.svg?style=flat)](https://www.npmjs.com/package/react-viewport-list)
+![typescript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-blue.svg)
 ![NPM license](https://img.shields.io/npm/l/react-viewport-list.svg?style=flat)
 [![NPM total downloads](https://img.shields.io/npm/dt/react-viewport-list.svg?style=flat)](https://npmcharts.com/compare/react-viewport-list?minimal=true)
 [![NPM monthly downloads](https://img.shields.io/npm/dm/react-viewport-list.svg?style=flat)](https://npmcharts.com/compare/react-viewport-list?minimal=true)
@@ -9,14 +10,18 @@
  
 \- [React.js documentation](https://reactjs.org/docs/optimizing-performance.html#virtualize-long-lists)
 
-## Virtual List for items with dynamic height/width
+## Virtualization for lists with dynamic item size
 
-- Simple API like [`.map()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map) (no item `ref`/`style` or list `width`/`height` required)
-- Dynamic `height`/`width`
-- Works perfectly with _Flexbox_ (no `pisition: absolute`)
-- Scroll to index
-- Vertical and Horizontal lists
-- Lightweight (1.7kb minified+gzipped)
+React Component that render only items in viewport
+
+## Features 🔥
+- Simple API like [**.map()**](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map)
+- Created for **dynamic** item `height`/`width` (if you don't know item size)
+- Works perfectly with **Flexbox** (unlike other libraries with `pisition: absolute`)
+- Supports **scroll to index**
+- Supports **initial index**
+- Supports **vertical** ↕ and **horizontal** ↔ lists️️
+- Tiny (**<2kb** minified+gzipped)
 
 Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
 
@@ -31,20 +36,29 @@ Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
 - ### Basic Usage:
 
     ```javascript
-    import React from 'react';
+    import { useRef } from 'react';
     import ViewportList from 'react-viewport-list';
      
-    const ItemsList = ({ items }) => (
-        <div className="scroll-container">
-            <ViewportList items={items} itemMinSize={40} margin={8}>
-                {(items) => (
-                    <div key={items.id} className="item">
-                        {items.title}
-                    </div>
-                )}
-            </ViewportList>
-        </div>
-    );
+    const ItemsList = ({ items }) => {
+        const ref = useRef(null);
+    
+        return (
+            <div className="scroll-container" ref={ref}>
+                <ViewportList
+                    viewportRef={ref}
+                    items={items}
+                    itemMinSize={40}
+                    margin={8}
+                >
+                    {(item) => (
+                        <div key={item.id} className="item">
+                            {item.title}
+                        </div>
+                    )}
+                </ViewportList>
+            </div>
+        );
+    };
     
     export default ItemsList;
     ```
@@ -53,14 +67,14 @@ Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
 
 name                 |type                                    |default |description
 ---------------------|----------------------------------------|--------|---------------------------------------------------------------------------------------------------------------------------------
-**viewportRef**      |MutableRefObject<HTMLElement>           |null    |Viewport `ref` object.<br>Required for browsers which unsupported `overflow-anchor` css property (like _Safari_)
+**viewportRef**      |MutableRefObject<HTMLElement>           |required|Viewport `ref` object
 **items**            |Array<any>                              |[]      |Array of items
 **itemMinSize**      |number                                  |required|Item min height (or min width for 'x' **axis**) in px
 **margin**           |number                                  |0       |Item margin bottom (or margin right for 'x' **axis**) in px.<br>You should still set `margin-bottom` (or `margin-right` for 'x' **axis**) in item styles
 **overscan**         |number                                  |1       |Count of "overscan" items
 **axis**             |'y' / 'x'                               |'y'     |Scroll axis<br>'y' - vertical, 'x' - horizontal
 **initialIndex**     |number                                  |-1      |Initial index of item in viewport
-**initialAlignToTop**|boolean                                 |true    |[scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) second argument.<br>Used with **initialIndex**)
+**initialAlignToTop**|boolean / ScrollIntoViewOptions         |true    |[scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) second argument.<br>Used with **initialIndex**
 **children**         |(item: any, index: number) => ReactNode |required|Item render function.<br>Similar to [`.map()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map) callback
 
 ## Methods
@@ -69,24 +83,26 @@ name                 |type                                    |default |descript
 
     **Params**
     
-    name          |type          |default|description
-    --------------|--------------|-------|-----------------------------------------------------------------------------------------------
-    **index**     |number        |-1     |Item index for scroll
-    **alignToTop**|boolean       |true   |[scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) second argument
+    name          |type                           |default|description
+    --------------|-------------------------------|-------|-----------------------------------------------------------------------------------------------
+    **index**     |number                         |-1     |Item index for scroll
+    **alignToTop**|boolean / ScrollIntoViewOptions|true   |[scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) second argument
     
     **Usage**
     
     ```javascript
-    import React, { useRef } from 'react';
+    import { useRef } from 'react';
     import ViewportList from 'react-viewport-list';
      
     const ItemsList = ({ items }) => {
+        const ref = useRef(null);
         const listRef = useRef(null);
     
         return (
-            <div className="scroll-container">
+            <div className="scroll-container" ref={ref}>
                 <ViewportList
                     ref={listRef}
+                    viewportRef={ref}
                     items={items}
                     itemMinSize={40}
                     margin={8}
@@ -107,7 +123,7 @@ name                 |type                                    |default |descript
 
 ## Performance
 
-You should add `will-change: transform` to a container styles for better performance
+You should add `will-change: transform` to a scroll container for better performance
 
 ```css
 .scroll-container {
@@ -117,15 +133,9 @@ You should add `will-change: transform` to a container styles for better perform
 
 ## Limitations
 
-- ### overflow-anchor
-
-    If you are using `overflor-anchor` css property for a container or items, scroll may lagging (jumping). Don't use this property.
-    
-    Fast scrolling up impossible (if items not cached yet) for browsers which unsupported `overflow-anchor` css property (like _Safari_) because list sets scrollTop to prevent scroll lagging (jumping)
-
 - ### margin
 
-    You should use only `margin-bottom` (or `margin-right` for 'x' **axis**)for items, and provide it to **ViewportList** props. Don't use `margin-top` (or `margin-left` for 'x' **axis**)
+    You should use only `margin-bottom` (or `margin-right` for 'x' **axis**) for items, and provide it to **ViewportList** props. Don't use `margin-top` (or `margin-left` for 'x' **axis**)
  
     ```css
     .item {
@@ -133,68 +143,88 @@ You should add `will-change: transform` to a container styles for better perform
     }    
     ```
 
-- ### css child selectors
-
-    Be accurate with css child selectors (and pseudo-classes) for items styling. **ViewportList** adds blank `div`'s on list top and bottom
-
 ## Advanced Usage
 
 - ### Grouping
 
-    **ViewportList** is only items (without a container)
+    **ViewportList** render `Fragment` with items in viewport
     
     ```javascript
-    import React from 'react';
+    import { useRef } from 'react';
     import ViewportList from 'react-viewport-list';
     
-    const ItemsList = ({ keyItems, items }) => (
-        <div className="scroll-container">
-            <span className="group-title">{'Key Items'}</span>
-            <ViewportList items={keyItems} itemMinSize={60} margin={8}>
-                {(item) => (
-                    <div key={item.id} className="key-item">
-                        {item.title}
-                    </div>
-                )}
-            </ViewportList>
-            <span className="group-title">{'Items'}</span>
-            <ViewportList items={items} itemMinSize={40} margin={8}>
-                {(item) => (
-                    <div key={item.id} className="item">
-                        {item.title}
-                    </div>
-                )}
-            </ViewportList>
-        </div>
-    );
-    
+    const ItemsList = ({ keyItems, items }) => {
+        const ref = useRef(null);
+
+        return (
+            <div className="scroll-container" ref={ref}>
+                <span className="group-title">{'Key Items'}</span>
+                <ViewportList
+                    viewportRef={ref}
+                    items={keyItems}
+                    itemMinSize={60}
+                    margin={8}
+                >
+                    {(item) => (
+                        <div key={item.id} className="key-item">
+                            {item.title}
+                        </div>
+                    )}
+                </ViewportList>
+                <span className="group-title">{'Items'}</span>
+                <ViewportList
+                    viewportRef={ref}
+                    items={items}
+                    itemMinSize={40}
+                    margin={8}
+                >
+                    {(item) => (
+                        <div key={item.id} className="item">
+                            {item.title}
+                        </div>
+                    )}
+                </ViewportList>
+            </div>
+        );
+    }
     export default ItemsList;
     ```
 
 - ### Sorting
 
-    You can use _[React Sortable HOC](https://github.com/clauderic/react-sortable-hoc)_
+    You can use [React Sortable HOC](https://github.com/clauderic/react-sortable-hoc)
     
     ```javascript
-    import React, { useRef } from 'react';
+    import { useRef } from 'react';
     import { SortableContainer, SortableElement } from 'react-sortable-hoc';
     import ViewportList from 'react-viewport-list';
     
-    const SortableItem = SortableElement((props) => <div {...props} />);
-    
-    const SortableList = SortableContainer((props) => <div {...props} />);
-     
-    const ItemsList = ({ items, onSortEnd }) => (
-        <SortableList className="scroll-container" onSortEnd={onSortEnd}>
-            <ViewportList items={items} itemMinSize={40} margin={8}>
-                {(item, index) => (
-                    <SortableItem key={index} index={index} className="item">
-                        {item.title}
-                    </SortableItem>
-                )}
-            </ViewportList>
-        </SortableList>
+    const SortableList = SortableContainer(
+        ({ innerRef, ...rest }) => <div {...rest} ref={innerRef} />
     );
+    
+    const SortableItem = SortableElement((props) => <div {...props} />);
+     
+    const ItemsList = ({ items, onSortEnd }) => {
+        const ref = useRef(null);
+
+        return (
+            <SortableList innerRef={ref} className="scroll-container" onSortEnd={onSortEnd}>
+                <ViewportList
+                    viewportRef={ref}
+                    items={items}
+                    itemMinSize={40}
+                    margin={8}
+                >
+                    {(item, index) => (
+                        <SortableItem key={index} index={index} className="item">
+                            {item.title}
+                        </SortableItem>
+                    )}
+                </ViewportList>
+            </SortableList>
+        );
+    }
     
     export default ItemsList;
     ```

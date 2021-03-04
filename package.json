@@ -1,10 +1,15 @@
 {
   "name": "react-viewport-list",
-  "version": "4.0.5",
-  "description": "Virtual List for items with dynamic height/width",
+  "version": "5.0.0",
+  "description": "Virtualization for lists with dynamic item size",
   "keywords": [
     "react",
+    "viewport",
+    "list",
+    "windowing",
+    "window",
     "virualization",
+    "virtual",
     "react-window",
     "react-virualized",
     "react-tiny-virtual-list",

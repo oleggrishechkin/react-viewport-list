@@ -1,3 +1,9 @@
+# 5.0.0 (04 March 2021)
+
+## Breaking
+
+- **viewportRef** is required prop
+
 # 4.0.0 (02 March 2021)
 
 ## Breaking
