@@ -13,14 +13,6 @@ import {
 
 const MIN_INDEX = 0;
 
-const IS_OVERFLOW_ANCHOR_SUPPORTED = ((): boolean => {
-    try {
-        return window.CSS.supports('overflow-anchor: auto');
-    } catch (error) {
-        return false;
-    }
-})();
-
 interface NormalizeValue {
     (min: number, value: number, max: number): number;
 }
@@ -125,7 +117,6 @@ interface Variables {
     cache: Array<number>;
     step: Frame;
     scrollToIndex: ScrollToIndexConfig | null;
-    needScroll: boolean;
 }
 
 const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, ViewportListProps>(
@@ -158,8 +149,7 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
         const variables = useRef<Variables>({
             cache: [],
             step: () => null,
-            scrollToIndex: startIndex ? { index: startIndex, alignToTop: initialAlignToTop } : null,
-            needScroll: false
+            scrollToIndex: startIndex ? { index: startIndex, alignToTop: initialAlignToTop } : null
         });
         const normalizedStartIndex = normalizeValue(MIN_INDEX, startIndex, maxIndex);
         const normalizedEndIndex = normalizeValue(normalizedStartIndex, endIndex, maxIndex);
@@ -188,6 +178,25 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
                     .map((item, index) => children(item, normalizedStartIndex + index)),
             [items, normalizedStartIndex, normalizedEndIndex, children]
         );
+        const scroll: Frame = () => {
+            if (!viewportRef?.current) {
+                return;
+            }
+
+            const oldScroll = viewportRef.current[propName.scrollTop];
+            const oldScrollSize =
+                viewportRef.current[propName.scrollHeight] - viewportRef.current[propName.clientHeight];
+
+            setTimeout(() => {
+                const newScrollSize =
+                    viewportRef.current[propName.scrollHeight] - viewportRef.current[propName.clientHeight];
+                const newScroll = oldScroll + newScrollSize - oldScrollSize;
+
+                if (viewportRef.current[propName.scrollTop] !== newScroll) {
+                    viewportRef.current[propName.scrollTop] = oldScroll + newScrollSize - oldScrollSize;
+                }
+            });
+        };
 
         variables.current.step = () => {
             const viewportRect = viewportRef?.current?.getBoundingClientRect();
@@ -244,7 +253,7 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
                     diff -= (variables.current.cache[--nextEndIndex] || 0) + itemMinSizeWithMargin;
                 }
 
-                variables.current.needScroll = true;
+                scroll();
                 nextStartIndex = nextEndIndex - maxItemsCountInViewPort;
             } else if (bottomElementRect[propName.bottom] + margin <= topLimit) {
                 diff = topLimit - bottomElementRect[propName.bottom] + margin;
@@ -265,7 +274,7 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
                         diff -= (variables.current.cache[--nextStartIndex] || 0) + itemMinSizeWithMargin;
                     }
 
-                    variables.current.needScroll = true;
+                    scroll();
                 }
 
                 if (bottomElementRect[propName.bottom] + margin <= bottomLimit) {
@@ -304,24 +313,6 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
             }),
             []
         );
-
-        if (!!viewportRef?.current && variables.current.needScroll && !IS_OVERFLOW_ANCHOR_SUPPORTED) {
-            const oldScroll = viewportRef.current[propName.scrollTop];
-            const oldScrollSize =
-                viewportRef.current[propName.scrollHeight] - viewportRef.current[propName.clientHeight];
-
-            setTimeout(() => {
-                const newScrollSize =
-                    viewportRef.current[propName.scrollHeight] - viewportRef.current[propName.clientHeight];
-
-                if (oldScrollSize !== newScrollSize) {
-                    viewportRef.current[propName.scrollTop] = oldScroll + newScrollSize - oldScrollSize;
-                }
-
-                variables.current.needScroll = false;
-            });
-        }
-
         useEffect(() => {
             let frameId: number;
             const frame: Frame = () => {
