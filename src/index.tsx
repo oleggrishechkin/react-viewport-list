@@ -7,8 +7,7 @@ import {
     useMemo,
     MutableRefObject,
     ReactNode,
-    forwardRef,
-    FC
+    forwardRef
 } from 'react';
 
 const MIN_INDEX = 0;
@@ -93,7 +92,7 @@ export interface ViewportListRef {
 }
 
 export interface ViewportListProps {
-    viewportRef?: MutableRefObject<HTMLElement> | null;
+    viewportRef: MutableRefObject<HTMLElement | null>;
     items?: Array<any>;
     itemMinSize: number;
     margin?: number;
@@ -109,20 +108,45 @@ interface ScrollToIndexConfig {
     alignToTop: boolean | ScrollIntoViewOptions;
 }
 
-interface Frame {
+interface Void {
     (): void;
 }
 
-interface Variables {
-    cache: Array<number>;
-    step: Frame;
-    scrollToIndex: ScrollToIndexConfig | null;
+interface GetScrollBottom {
+    (node: Element, propName: PropName): number;
 }
 
-const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, ViewportListProps>(
+const getScrollBottom: GetScrollBottom = (node, propName) =>
+    node[propName.scrollHeight] - node[propName.clientHeight] - node[propName.scrollTop];
+
+interface SetScrollBottom {
+    (node: Element, value: number, propName: PropName): void;
+}
+
+const setScrollBottom: SetScrollBottom = (node, value, propName) => {
+    node[propName.scrollTop] = node[propName.scrollHeight] - node[propName.clientHeight] - value;
+};
+
+interface SetScrollIfNeeded {
+    (node: Element | null, propName: PropName): void;
+}
+
+const setScrollIfNeeded: SetScrollIfNeeded = (node, propName) => {
+    if (node) {
+        const scrollBottom = getScrollBottom(node, propName);
+
+        setTimeout(() => {
+            if (node && getScrollBottom(node, propName) !== scrollBottom) {
+                setScrollBottom(node, scrollBottom, propName);
+            }
+        });
+    }
+};
+
+const ViewportList = forwardRef<ViewportListRef, ViewportListProps>(
     (
         {
-            viewportRef = null,
+            viewportRef,
             items = [],
             itemMinSize,
             margin = 0,
@@ -144,19 +168,19 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
 
             return [normalizedInitialIndex, normalizedInitialIndex];
         });
-        const topRef = useRef<HTMLDivElement | null>(null);
-        const bottomRef = useRef<HTMLDivElement | null>(null);
-        const variables = useRef<Variables>({
-            cache: [],
-            step: () => null,
-            scrollToIndex: startIndex ? { index: startIndex, alignToTop: initialAlignToTop } : null
-        });
+        const topRef = useRef<HTMLDivElement>(null);
+        const bottomRef = useRef<HTMLDivElement>(null);
+        const cache = useRef<Array<number>>([]);
+        const scrollToIndex = useRef<ScrollToIndexConfig | null>(
+            startIndex ? { index: startIndex, alignToTop: initialAlignToTop } : null
+        );
+        const step = useRef<Void>(() => {});
         const normalizedStartIndex = normalizeValue(MIN_INDEX, startIndex, maxIndex);
         const normalizedEndIndex = normalizeValue(normalizedStartIndex, endIndex, maxIndex);
         const topStyle = useMemo<Style>(
             () =>
                 getStyle(
-                    variables.current.cache
+                    cache.current
                         .slice(MIN_INDEX, normalizedStartIndex)
                         .reduce((sum, next) => sum + next, normalizedStartIndex * itemMinSizeWithMargin)
                 ),
@@ -165,7 +189,7 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
         const bottomStyle = useMemo<Style>(
             () =>
                 getStyle(
-                    variables.current.cache
+                    cache.current
                         .slice(normalizedEndIndex + 1, maxIndex)
                         .reduce((sum, next) => sum + next, itemMinSizeWithMargin * (maxIndex - normalizedEndIndex))
                 ),
@@ -178,38 +202,23 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
                     .map((item, index) => children(item, normalizedStartIndex + index)),
             [items, normalizedStartIndex, normalizedEndIndex, children]
         );
-        const scroll: Frame = () => {
-            if (!viewportRef?.current) {
+
+        step.current = () => {
+            if (
+                !viewportRef.current ||
+                !topRef.current ||
+                !bottomRef.current ||
+                !(topRef.current.nextSibling instanceof Element) ||
+                !(bottomRef.current.previousSibling instanceof Element)
+            ) {
                 return;
             }
 
-            const oldScroll = viewportRef.current[propName.scrollTop];
-            const oldScrollSize =
-                viewportRef.current[propName.scrollHeight] - viewportRef.current[propName.clientHeight];
-
-            setTimeout(() => {
-                const newScrollSize =
-                    viewportRef.current[propName.scrollHeight] - viewportRef.current[propName.clientHeight];
-                const newScroll = oldScroll + newScrollSize - oldScrollSize;
-
-                if (viewportRef.current[propName.scrollTop] !== newScroll) {
-                    viewportRef.current[propName.scrollTop] = oldScroll + newScrollSize - oldScrollSize;
-                }
-            });
-        };
-
-        variables.current.step = () => {
-            const viewportRect = viewportRef?.current?.getBoundingClientRect();
-            const topLimit =
-                (viewportRect
-                    ? normalizeValue(0, viewportRect[propName.top], document.documentElement[propName.clientHeight])
-                    : 0) - overscanSize;
-            const bottomLimit =
-                (viewportRect
-                    ? normalizeValue(0, viewportRect[propName.bottom], document.documentElement[propName.clientHeight])
-                    : document.documentElement[propName.clientHeight]) + overscanSize;
-            const topElementRect = (topRef.current?.nextSibling as Element)?.getBoundingClientRect();
-            const bottomElementRect = (bottomRef.current?.previousSibling as Element)?.getBoundingClientRect();
+            const viewportRect = viewportRef.current.getBoundingClientRect();
+            const topLimit = viewportRect[propName.top] - overscanSize;
+            const bottomLimit = viewportRect[propName.bottom] + overscanSize;
+            const topElementRect = topRef.current.nextSibling.getBoundingClientRect();
+            const bottomElementRect = bottomRef.current.previousSibling.getBoundingClientRect();
             const maxItemsCountInViewPort = Math.ceil((bottomLimit - topLimit) / itemMinSizeWithMargin);
             let nextStartIndex = startIndex;
             let nextEndIndex = endIndex;
@@ -217,26 +226,22 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
             let index;
             let element;
 
-            if (!topElementRect || !bottomElementRect) {
-                return;
-            }
-
-            if (variables.current.scrollToIndex) {
-                const targetIndex = normalizeValue(MIN_INDEX, variables.current.scrollToIndex.index, maxIndex);
+            if (scrollToIndex.current) {
+                const targetIndex = normalizeValue(MIN_INDEX, scrollToIndex.current.index, maxIndex);
 
                 if (targetIndex >= startIndex && targetIndex <= endIndex) {
                     index = startIndex;
-                    element = topRef.current?.nextSibling as Element;
+                    element = topRef.current.nextSibling;
 
-                    while (!!element && element !== bottomRef.current) {
+                    while (element instanceof Element && element !== bottomRef.current) {
                         if (index === targetIndex) {
-                            element.scrollIntoView(variables.current.scrollToIndex.alignToTop);
-                            variables.current.scrollToIndex = null;
+                            element.scrollIntoView(scrollToIndex.current.alignToTop);
+                            scrollToIndex.current = null;
 
                             break;
                         }
 
-                        element = element.nextSibling as Element;
+                        element = element.nextSibling;
                         ++index;
                     }
 
@@ -250,17 +255,17 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
                 nextEndIndex = startIndex;
 
                 while (diff >= 0 && nextEndIndex > MIN_INDEX) {
-                    diff -= (variables.current.cache[--nextEndIndex] || 0) + itemMinSizeWithMargin;
+                    diff -= (cache.current[--nextEndIndex] || 0) + itemMinSizeWithMargin;
                 }
 
-                scroll();
                 nextStartIndex = nextEndIndex - maxItemsCountInViewPort;
+                setScrollIfNeeded(viewportRef.current, propName);
             } else if (bottomElementRect[propName.bottom] + margin <= topLimit) {
                 diff = topLimit - bottomElementRect[propName.bottom] + margin;
                 nextStartIndex = endIndex;
 
                 while (diff >= 0 && nextStartIndex < maxIndex) {
-                    diff -= (variables.current.cache[++nextStartIndex] || 0) + itemMinSizeWithMargin;
+                    diff -= (cache.current[++nextStartIndex] || 0) + itemMinSizeWithMargin;
                 }
 
                 nextEndIndex = nextStartIndex + maxItemsCountInViewPort;
@@ -271,17 +276,17 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
                     diff = topElementRect[propName.top] - topLimit;
 
                     while (diff >= 0 && nextStartIndex > MIN_INDEX) {
-                        diff -= (variables.current.cache[--nextStartIndex] || 0) + itemMinSizeWithMargin;
+                        diff -= (cache.current[--nextStartIndex] || 0) + itemMinSizeWithMargin;
                     }
 
-                    scroll();
+                    setScrollIfNeeded(viewportRef.current, propName);
                 }
 
                 if (bottomElementRect[propName.bottom] + margin <= bottomLimit) {
                     diff = bottomLimit - bottomElementRect[propName.bottom] - margin;
 
                     while (diff >= 0 && nextEndIndex < maxIndex) {
-                        diff -= (variables.current.cache[++nextEndIndex] || 0) + itemMinSizeWithMargin;
+                        diff -= (cache.current[++nextEndIndex] || 0) + itemMinSizeWithMargin;
                     }
                 } else if (bottomElementRect[propName.top] > bottomLimit) {
                     --nextEndIndex;
@@ -293,11 +298,11 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
 
             if (nextStartIndex !== startIndex || nextEndIndex !== endIndex) {
                 index = startIndex;
-                element = topRef.current?.nextSibling as Element;
+                element = topRef.current.nextSibling;
 
-                while (!!element && index <= endIndex && element !== bottomRef.current) {
-                    variables.current.cache[index++] = element[propName.clientHeight] - itemMinSize;
-                    element = element.nextSibling as Element;
+                while (element instanceof Element && index <= endIndex && element !== bottomRef.current) {
+                    cache.current[index++] = element[propName.clientHeight] - itemMinSize;
+                    element = element.nextSibling;
                 }
 
                 setIndexes([nextStartIndex, nextEndIndex]);
@@ -308,16 +313,16 @@ const ViewportList: FC<ViewportListProps> = forwardRef<ViewportListRef, Viewport
             ref,
             () => ({
                 scrollToIndex: (index = -1, alignToTop = true) => {
-                    variables.current.scrollToIndex = { index, alignToTop };
+                    scrollToIndex.current = { index, alignToTop };
                 }
             }),
             []
         );
         useEffect(() => {
             let frameId: number;
-            const frame: Frame = () => {
+            const frame: Void = () => {
+                step.current();
                 frameId = requestAnimationFrame(frame);
-                variables.current.step();
             };
 
             frame();

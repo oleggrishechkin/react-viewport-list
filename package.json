@@ -1,6 +1,6 @@
 {
   "name": "react-viewport-list",
-  "version": "4.0.4",
+  "version": "4.0.5",
   "description": "Virtual List for items with dynamic height/width",
   "keywords": [
     "react",
@@ -19,8 +19,7 @@
     "url": "https://github.com/oleggrishechkin"
   },
   "files": [
-    "lib/*.js",
-    "lib/*.d.ts"
+    "lib/*"
   ],
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
