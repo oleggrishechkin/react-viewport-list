@@ -1,3 +1,9 @@
+# 5.0.1 (17 March 2021)
+
+## Updates
+
+- Return old scroll compensation logic
+
 # 5.0.0 (04 March 2021)
 
 ## Breaking
