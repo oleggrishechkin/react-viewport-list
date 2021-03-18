@@ -87,6 +87,7 @@ export interface ViewportListProps {
     axis?: Axis;
     initialIndex?: number;
     initialAlignToTop?: boolean | ScrollIntoViewOptions;
+    initialOffset?: number;
     children: (item: any, index: number) => ReactNode;
 }
 
@@ -101,6 +102,7 @@ const ViewportList = forwardRef<ViewportListRef, ViewportListProps>(
             axis = 'y',
             initialIndex = 0,
             initialAlignToTop = true,
+            initialOffset = 0,
             children
         },
         ref
@@ -119,9 +121,11 @@ const ViewportList = forwardRef<ViewportListRef, ViewportListProps>(
         const bottomRef = useRef<HTMLDivElement>(null);
         const step = useRef(() => {});
         const cache = useRef<Array<number>>([]);
-        const scrollToIndex = useRef<{ index: number; alignToTop: boolean | ScrollIntoViewOptions } | null>(
-            startIndex ? { index: startIndex, alignToTop: initialAlignToTop } : null
-        );
+        const scrollToIndex = useRef<{
+            index: number;
+            alignToTop: boolean | ScrollIntoViewOptions;
+            offset: number;
+        } | null>(startIndex ? { index: startIndex, alignToTop: initialAlignToTop, offset: initialOffset } : null);
         const scrollCompensationEndIndex = useRef(-1);
         const normalizedStartIndex = normalizeValue(MIN_INDEX, startIndex, maxIndex);
         const normalizedEndIndex = normalizeValue(normalizedStartIndex, endIndex, maxIndex);
@@ -190,6 +194,11 @@ const ViewportList = forwardRef<ViewportListRef, ViewportListProps>(
                     while (element instanceof Element && element !== bottomRef.current) {
                         if (index === targetIndex) {
                             element.scrollIntoView(scrollToIndex.current.alignToTop);
+
+                            if (scrollToIndex.current.offset) {
+                                viewportRef.current[propName.scrollTop] += scrollToIndex.current.offset;
+                            }
+
                             scrollToIndex.current = null;
 
                             break;
@@ -266,8 +275,8 @@ const ViewportList = forwardRef<ViewportListRef, ViewportListProps>(
         useImperativeHandle(
             ref,
             () => ({
-                scrollToIndex: (index = -1, alignToTop = true) => {
-                    scrollToIndex.current = { index, alignToTop };
+                scrollToIndex: (index = -1, alignToTop = true, offset = 0) => {
+                    scrollToIndex.current = { index, alignToTop, offset };
                 }
             }),
             []

@@ -1,3 +1,11 @@
+# 5.1.0 (18 March 2021)
+
+## Features
+
+- Support offset for scrolling
+  - new **initialOffset** prop
+  - new **offset** param for **scrollToIndex** method
+
 # 5.0.1 (17 March 2021)
 
 ## Updates
