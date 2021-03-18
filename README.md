@@ -10,7 +10,7 @@
  
 \- [React.js documentation](https://reactjs.org/docs/optimizing-performance.html#virtualize-long-lists)
 
-## Virtualization for lists with dynamic item size
+## 📜 Virtualization for lists with dynamic item size
 
 React Component that render only items in viewport
 
@@ -75,6 +75,7 @@ name                 |type                                    |default |descript
 **axis**             |'y' / 'x'                               |'y'     |Scroll axis<br>'y' - vertical, 'x' - horizontal
 **initialIndex**     |number                                  |-1      |Initial index of item in viewport
 **initialAlignToTop**|boolean / ScrollIntoViewOptions         |true    |[scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) second argument.<br>Used with **initialIndex**
+**initialOffset**    |number                                  |0       |Offset after scrollIntoView.<br>Used with **initialIndex**
 **children**         |(item: any, index: number) => ReactNode |required|Item render function.<br>Similar to [`.map()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map) callback
 
 ## Methods
@@ -87,6 +88,7 @@ name                 |type                                    |default |descript
     --------------|-------------------------------|-------|-----------------------------------------------------------------------------------------------
     **index**     |number                         |-1     |Item index for scroll
     **alignToTop**|boolean / ScrollIntoViewOptions|true   |[scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) second argument
+    **offset**    |number                         |0      |Offset after scrollIntoView
     
     **Usage**
     
@@ -123,7 +125,9 @@ name                 |type                                    |default |descript
 
 ## Performance
 
-You should add `will-change: transform` to a scroll container for better performance
+If you have performance issues, you can add `will-change: transform` to a scroll container.
+
+You should remember that in some situations `will-change: transform` can cause performance issues not fixed them.
 
 ```css
 .scroll-container {
