@@ -1,7 +1,7 @@
 {
   "name": "react-viewport-list",
-  "version": "5.1.0",
-  "description": "\uD83D\uDCDC Virtualization for lists with dynamic item size",
+  "version": "5.1.1",
+  "description": "📜 Virtualization for lists with dynamic item size",
   "keywords": [
     "react",
     "viewport",
@@ -33,11 +33,18 @@
     "url": "https://github.com/oleggrishechkin/react-viewport-list"
   },
   "scripts": {
-    "prepare": "rimraf lib && tsc"
+    "lint": "eslint --quiet .",
+    "lint:fix": "eslint --quiet --fix .",
+    "prettier:fix": "prettier --write .",
+    "prepare": "husky install && rimraf lib && tsc"
   },
   "devDependencies": {
     "@types/react": "^17.0.2",
-    "configs-og": "^2.0.15",
+    "configs-og": "^3.0.7",
+    "eslint": "^7.32.0",
+    "husky": "^7.0.2",
+    "lint-staged": "^11.2.3",
+    "prettier": "^2.4.1",
     "react": "^17.0.1",
     "rimraf": "^3.0.2",
     "typescript": "^4.2.2"
@@ -63,14 +70,7 @@
     ]
   },
   "prettier": "configs-og/prettier.config.js",
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
   "lint-staged": {
-    "*.(js|jsx|ts|tsx)": [
-      "eslint --quiet"
-    ]
+    "*.(js|jsx|ts|tsx)": "eslint --quiet"
   }
 }
