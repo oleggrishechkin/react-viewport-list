@@ -62,17 +62,19 @@ const getPropName = (axis: Axis): PropName => ({
     maxHeight: axis === 'y' ? 'maxHeight' : 'maxWidth'
 });
 
-const getStyleFabric = (propName: PropName) => (size: number): Style => ({
-    [propName.minHeight]: size,
-    [propName.height]: size,
-    [propName.maxHeight]: size,
-    overflowAnchor: 'none',
-    pointerEvents: 'none',
-    userSelect: 'none',
-    padding: 0,
-    margin: 0,
-    border: 'none'
-});
+const getStyleFabric =
+    (propName: PropName) =>
+    (size: number): Style => ({
+        [propName.minHeight]: size,
+        [propName.height]: size,
+        [propName.maxHeight]: size,
+        overflowAnchor: 'none',
+        pointerEvents: 'none',
+        userSelect: 'none',
+        padding: 0,
+        margin: 0,
+        border: 'none'
+    });
 
 export interface ViewportListRef {
     scrollToIndex: (index?: number, alignTop?: boolean | ScrollIntoViewOptions) => void;
@@ -340,4 +342,5 @@ const ViewportList = forwardRef<ViewportListRef, ViewportListProps>(
     }
 );
 
+// eslint-disable-next-line import/no-default-export
 export default ViewportList;
