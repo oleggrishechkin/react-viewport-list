@@ -40,6 +40,7 @@
     },
     "devDependencies": {
         "@types/react": "^17.0.2",
+        "babel-eslint": "^10.1.0",
         "configs-og": "^3.0.7",
         "eslint": "^7.32.0",
         "husky": "^7.0.2",
@@ -72,8 +73,5 @@
     "prettier": "configs-og/prettier.config.js",
     "lint-staged": {
         "*.(js|jsx|ts|tsx)": "eslint --quiet"
-    },
-    "dependencies": {
-        "babel-eslint": "^10.1.0"
     }
 }
