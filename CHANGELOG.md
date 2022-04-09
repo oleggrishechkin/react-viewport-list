@@ -1,3 +1,12 @@
+# 5.1.3 (09 April 2022)
+
+## Updates
+
+-   Refactoring
+    - remove unnecessary **useMemo**
+    - improve typings
+    - provide **array** as third param for **children** prop
+
 # 5.1.0 (18 March 2021)
 
 ## Features
