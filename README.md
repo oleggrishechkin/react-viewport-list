@@ -12,8 +12,6 @@
 
 ## 📜 Virtualization for lists with dynamic item size
 
-React Component that render only items in viewport
-
 ## Features 🔥
 
 -   Simple API like [**.map()**](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map)
@@ -61,18 +59,19 @@ Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
 
 ## Props
 
-| name                  | type                                    | default  | description                                                                                                                                              |
-| --------------------- | --------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **viewportRef**       | MutableRefObject<HTMLElement>           | required | Viewport `ref` object                                                                                                                                    |
-| **items**             | Array<any>                              | []       | Array of items                                                                                                                                           |
-| **itemMinSize**       | number                                  | required | Item min height (or min width for 'x' **axis**) in px                                                                                                    |
-| **margin**            | number                                  | 0        | Item margin bottom (or margin right for 'x' **axis**) in px.<br>You should still set `margin-bottom` (or `margin-right` for 'x' **axis**) in item styles |
-| **overscan**          | number                                  | 1        | Count of "overscan" items                                                                                                                                |
-| **axis**              | 'y' / 'x'                               | 'y'      | Scroll axis<br>'y' - vertical, 'x' - horizontal                                                                                                          |
-| **initialIndex**      | number                                  | -1       | Initial index of item in viewport                                                                                                                        |
-| **initialAlignToTop** | boolean / ScrollIntoViewOptions         | true     | [scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) second argument.<br>Used with **initialIndex**                 |
-| **initialOffset**     | number                                  | 0        | Offset after scrollIntoView.<br>Used with **initialIndex**                                                                                               |
-| **children**          | (item: any, index: number) => ReactNode | required | Item render function.<br>Similar to [`.map()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map) callback      |
+| name                  | type                                                                 | default  | description                                                                                                                                         |
+|-----------------------|----------------------------------------------------------------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| **viewportRef**       | MutableRefObject<HTMLElement / null> / RefObject<HTMLElement / null> | required | Viewport `ref` object                                                                                                                               |
+| **items**             | T[]                                                                  | []       | Array of items                                                                                                                                      |
+| **itemMinSize**       | number                                                               | required | Item min height (or min width for 'x' **axis**) in px                                                                                               |
+| **margin**            | number                                                               | 0        | Item margin bottom (or margin right for 'x' **axis**) in px.<br>You should still set `margin-bottom` (or `margin-right` for 'x' **axis**) in item styles |
+| **overscan**          | number                                                               | 1        | Count of "overscan" items                                                                                                                           |
+| **axis**              | 'y' / 'x'                                                            | 'y'      | Scroll axis<br>'y' - vertical, 'x' - horizontal                                                                                                     |
+| **initialIndex**      | number                                                               | -1       | Initial index of item in viewport                                                                                                                   |
+| **initialAlignToTop** | boolean / ScrollIntoViewOptions                                      | true     | [scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) second argument.<br>Used with **initialIndex**            |
+| **initialOffset**     | number                                                               | 0        | Offset after scrollIntoView.<br>Used with **initialIndex**                                                                                          |
+| **fixed**             | boolean                                                              | false    | Optimize case when item size is fixed                                                                                                               |
+| **children**          | (item: T, index: number, array: T[]) => ReactNode                    | required | Item render function.<br>Similar to [`.map()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map) callback |
 
 ## Methods
 
