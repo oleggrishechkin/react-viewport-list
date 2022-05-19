@@ -61,6 +61,8 @@ const getStyle = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X
 
 const normalizeValue = (min: number, value: number, max: number) => Math.max(Math.min(value, max), min);
 
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 const useRequestAnimationFrame = (func: () => void) => {
     const stepRef = useRef(func);
 
@@ -312,7 +314,7 @@ const ViewportListInner = <T extends any>(
         }
     });
 
-    useLayoutEffect(() => {
+    useIsomorphicLayoutEffect(() => {
         if (scrollCompensationEndIndexRef.current === -1) {
             return;
         }
