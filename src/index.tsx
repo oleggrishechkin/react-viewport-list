@@ -119,7 +119,8 @@ const ViewportListInner = <T extends any>(
 ) => {
     const propName = axis === 'y' ? PROP_NAME_FOR_Y_AXIS : PROP_NAME_FOR_X_AXIS;
     const maxIndex = items.length - 1;
-    const itemMinSizeWithMargin = itemMinSize + margin;
+    const normalizedItemMinSize = Math.max(0, itemMinSize);
+    const itemMinSizeWithMargin = normalizedItemMinSize + margin;
     const overscanSize = overscan * itemMinSizeWithMargin;
     const [[startIndex, endIndex], setIndexes] = useState(() => {
         const normalizedInitialIndex = normalizeValue(MIN_INDEX, initialIndex, maxIndex);
@@ -143,9 +144,12 @@ const ViewportListInner = <T extends any>(
                 propName,
                 cacheRef.current
                     .slice(MIN_INDEX, normalizedStartIndex)
-                    .reduce((sum, next) => sum + (next - itemMinSize), normalizedStartIndex * itemMinSizeWithMargin)
+                    .reduce(
+                        (sum, next) => sum + (next - normalizedItemMinSize),
+                        normalizedStartIndex * itemMinSizeWithMargin
+                    )
             ),
-        [itemMinSize, itemMinSizeWithMargin, normalizedStartIndex, propName]
+        [normalizedItemMinSize, itemMinSizeWithMargin, normalizedStartIndex, propName]
     );
     const bottomStyle = useMemo(
         () =>
@@ -154,11 +158,11 @@ const ViewportListInner = <T extends any>(
                 cacheRef.current
                     .slice(normalizedEndIndex + 1, maxIndex)
                     .reduce(
-                        (sum, next) => sum + (next - itemMinSize),
+                        (sum, next) => sum + (next - normalizedItemMinSize),
                         itemMinSizeWithMargin * (maxIndex - normalizedEndIndex)
                     )
             ),
-        [propName, normalizedEndIndex, maxIndex, itemMinSizeWithMargin, itemMinSize]
+        [propName, normalizedEndIndex, maxIndex, itemMinSizeWithMargin, normalizedItemMinSize]
     );
 
     useRequestAnimationFrame(() => {
@@ -185,7 +189,9 @@ const ViewportListInner = <T extends any>(
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         const bottomElementRect = bottomRef.current.previousSibling.getBoundingClientRect();
-        const maxItemsCountInViewPort = Math.ceil((bottomLimit - topLimit) / itemMinSizeWithMargin);
+        const maxItemsCountInViewPort = itemMinSizeWithMargin
+            ? Math.ceil((bottomLimit - topLimit) / itemMinSizeWithMargin)
+            : items.length;
         let nextStartIndex = startIndex;
         let nextEndIndex = endIndex;
 
@@ -238,7 +244,7 @@ const ViewportListInner = <T extends any>(
             nextEndIndex = startIndex;
 
             while (diff >= 0 && nextEndIndex > MIN_INDEX) {
-                diff -= (cacheRef.current[--nextEndIndex] || itemMinSize) + margin;
+                diff -= (cacheRef.current[--nextEndIndex] || normalizedItemMinSize) + margin;
             }
 
             scrollCompensationEndIndexRef.current = startIndex;
@@ -250,7 +256,7 @@ const ViewportListInner = <T extends any>(
             nextStartIndex = endIndex;
 
             while (diff >= 0 && nextStartIndex < maxIndex) {
-                diff -= (cacheRef.current[++nextStartIndex] || itemMinSize) + margin;
+                diff -= (cacheRef.current[++nextStartIndex] || normalizedItemMinSize) + margin;
             }
 
             nextEndIndex = nextStartIndex + maxItemsCountInViewPort;
@@ -263,7 +269,7 @@ const ViewportListInner = <T extends any>(
                 let diff = topElementRect[propName.top] - topLimit;
 
                 while (diff >= 0 && nextStartIndex > MIN_INDEX) {
-                    diff -= (cacheRef.current[--nextStartIndex] || itemMinSize) + margin;
+                    diff -= (cacheRef.current[--nextStartIndex] || normalizedItemMinSize) + margin;
                 }
 
                 scrollCompensationEndIndexRef.current = startIndex;
@@ -274,7 +280,7 @@ const ViewportListInner = <T extends any>(
                 let diff = bottomLimit - bottomElementRect[propName.bottom] - margin;
 
                 while (diff >= 0 && nextEndIndex < maxIndex) {
-                    diff -= (cacheRef.current[++nextEndIndex] || itemMinSize) + margin;
+                    diff -= (cacheRef.current[++nextEndIndex] || normalizedItemMinSize) + margin;
                 }
                 // If last rendered item is below bottom
             } else if (bottomElementRect[propName.top] > bottomLimit) {
@@ -333,7 +339,7 @@ const ViewportListInner = <T extends any>(
         while (element && index < scrollCompensationEndIndexRef.current && element !== bottomRef.current) {
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
-            sizeDiff += element[propName.clientHeight] - (cacheRef.current[index] || itemMinSize);
+            sizeDiff += element[propName.clientHeight] - (cacheRef.current[index] || normalizedItemMinSize);
             element = element.nextSibling;
             ++index;
         }
