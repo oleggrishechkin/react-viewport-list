@@ -39,7 +39,8 @@ const PROP_NAME_FOR_Y_AXIS = {
     overflowY: 'overflowY',
     height: 'height',
     minHeight: 'minHeight',
-    maxHeight: 'maxHeight'
+    maxHeight: 'maxHeight',
+    marginTop: 'marginTop'
 } as const;
 
 const PROP_NAME_FOR_X_AXIS = {
@@ -51,10 +52,11 @@ const PROP_NAME_FOR_X_AXIS = {
     overflowY: 'overflowX',
     height: 'width',
     minHeight: 'minWidth',
-    maxHeight: 'maxWidth'
+    maxHeight: 'maxWidth',
+    marginTop: 'marginLeft'
 } as const;
 
-const getStyle = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS, size: number) =>
+const getStyle = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS, size: number, marginTop = 0) =>
     ({
         [propName.minHeight]: size,
         [propName.height]: size,
@@ -64,7 +66,8 @@ const getStyle = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X
         userSelect: 'none',
         padding: 0,
         margin: 0,
-        border: 'none'
+        border: 'none',
+        [propName.marginTop]: marginTop
     } as const);
 
 const normalizeValue = (min: number, value: number, max: number) => Math.max(Math.min(value, max), min);
@@ -147,6 +150,7 @@ const ViewportListInner = <T extends any>(
             : null
     );
     const anchorIndexRef = useRef(-1);
+    const marginTopRef = useRef(0);
     const topSpacerStyle = useMemo(
         () =>
             getStyle(
@@ -156,7 +160,8 @@ const ViewportListInner = <T extends any>(
                     .reduce(
                         (sum, next) => sum + (next - normalizedItemMinSize),
                         normalizedStartIndex * itemMinSizeWithMargin
-                    )
+                    ),
+                marginTopRef.current
             ),
         [normalizedItemMinSize, itemMinSizeWithMargin, normalizedStartIndex, propName]
     );
@@ -180,6 +185,16 @@ const ViewportListInner = <T extends any>(
         const bottomSpacer = bottomSpacerRef.current;
 
         if (!viewport || !topSpacer || !bottomSpacer) {
+            return;
+        }
+
+        if (marginTopRef.current && (viewport.scrollTop <= 0 || normalizedStartIndex === 0)) {
+            topSpacer.style[propName.marginTop] = '0px';
+            viewport.style[propName.overflowY] = 'hidden';
+            viewport.scrollTop += -marginTopRef.current;
+            viewport.style[propName.overflowY] = '';
+            marginTopRef.current = 0;
+
             return;
         }
 
@@ -357,9 +372,8 @@ const ViewportListInner = <T extends any>(
 
         if (sizeDiff) {
             if (IS_TOUCH) {
-                viewport.style[propName.overflowY] = 'hidden';
-                viewport[propName.scrollTop] += sizeDiff;
-                viewport.style[propName.overflowY] = '';
+                marginTopRef.current -= sizeDiff;
+                topSpacer.style[propName.marginTop] = `${marginTopRef.current}px`;
             } else {
                 viewport[propName.scrollTop] += sizeDiff;
             }
