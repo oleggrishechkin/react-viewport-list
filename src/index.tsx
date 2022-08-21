@@ -130,11 +130,8 @@ const ViewportListInner = <T extends any>(
     const normalizedItemMinSize = Math.max(1, itemMinSize);
     const itemMinSizeWithMargin = normalizedItemMinSize + margin;
     const overscanSize = overscan * itemMinSizeWithMargin;
-    const [[startIndex, endIndex], setIndexes] = useState(() => {
-        const normalizedInitialIndex = normalizeValue(MIN_INDEX, initialIndex, maxIndex);
-
-        return [normalizedInitialIndex, normalizedInitialIndex];
-    });
+    const normalizedInitialIndex = normalizeValue(MIN_INDEX, initialIndex, maxIndex);
+    const [[startIndex, endIndex], setIndexes] = useState([normalizedInitialIndex, normalizedInitialIndex]);
     const normalizedStartIndex = normalizeValue(MIN_INDEX, startIndex, maxIndex);
     const normalizedEndIndex = normalizeValue(normalizedStartIndex, endIndex, maxIndex);
     const topSpacerRef = useRef<HTMLDivElement>(null);
@@ -144,7 +141,11 @@ const ViewportListInner = <T extends any>(
         index: number;
         alignToTop: boolean | ScrollIntoViewOptions;
         offset: number;
-    } | null>(startIndex ? { index: startIndex, alignToTop: initialAlignToTop, offset: initialOffset } : null);
+    } | null>(
+        normalizedStartIndex
+            ? { index: normalizedStartIndex, alignToTop: initialAlignToTop, offset: initialOffset }
+            : null
+    );
     const anchorIndexRef = useRef(-1);
     const topSpacerStyle = useMemo(
         () =>
@@ -203,14 +204,14 @@ const ViewportListInner = <T extends any>(
             Math.ceil((bottomLimit - topLimit) / itemMinSizeWithMargin),
             items.length
         );
-        let nextStartIndex = startIndex;
-        let nextEndIndex = endIndex;
+        let nextStartIndex = normalizedStartIndex;
+        let nextEndIndex = normalizedEndIndex;
 
         if (scrollToIndexRef.current) {
             const targetIndex = normalizeValue(MIN_INDEX, scrollToIndexRef.current.index, maxIndex);
 
-            if (targetIndex >= startIndex && targetIndex <= endIndex) {
-                let index = startIndex;
+            if (targetIndex >= normalizedStartIndex && targetIndex <= normalizedEndIndex) {
+                let index = normalizedStartIndex;
                 let element: Element | null = topElement;
 
                 while (element && element !== bottomSpacer) {
@@ -244,20 +245,20 @@ const ViewportListInner = <T extends any>(
             // fast scroll up
             let diff = topElementRect[propName.top] - bottomLimit;
 
-            nextEndIndex = startIndex;
+            nextEndIndex = normalizedStartIndex;
 
             while (diff >= 0 && nextEndIndex > MIN_INDEX) {
                 nextEndIndex--;
                 diff -= (cacheRef.current[nextEndIndex] || normalizedItemMinSize) + margin;
             }
 
-            anchorIndexRef.current = startIndex;
+            anchorIndexRef.current = normalizedStartIndex;
             nextStartIndex = nextEndIndex - maxItemsCountInViewPort;
         } else if (bottomElementRect[propName.bottom] + margin <= topLimit) {
             // fast scroll down
             let diff = topLimit - bottomElementRect[propName.bottom] + margin;
 
-            nextStartIndex = endIndex;
+            nextStartIndex = normalizedEndIndex;
 
             while (diff >= 0 && nextStartIndex < maxIndex) {
                 nextStartIndex++;
@@ -278,7 +279,7 @@ const ViewportListInner = <T extends any>(
                     diff -= (cacheRef.current[nextStartIndex] || normalizedItemMinSize) + margin;
                 }
 
-                anchorIndexRef.current = startIndex;
+                anchorIndexRef.current = normalizedStartIndex;
             }
 
             if (bottomElementRect[propName.bottom] + margin <= bottomLimit) {
@@ -298,25 +299,25 @@ const ViewportListInner = <T extends any>(
         nextStartIndex = normalizeValue(MIN_INDEX, nextStartIndex, maxIndex);
         nextEndIndex = normalizeValue(nextStartIndex, nextEndIndex, maxIndex);
 
-        if (nextStartIndex !== startIndex || nextEndIndex !== endIndex) {
+        if (nextStartIndex !== normalizedStartIndex || nextEndIndex !== normalizedEndIndex) {
             if (fixed) {
                 cacheRef.current = [];
             } else {
-                let index = startIndex;
+                let index = normalizedStartIndex;
                 let element: Element | null = topElement;
 
                 while (element && index < nextStartIndex && element !== bottomSpacer) {
-                    cacheRef.current[index++] = element[propName.clientHeight];
+                    cacheRef.current[index] = element[propName.clientHeight];
                     index++;
                     element = element.nextSibling as Element | null;
                 }
 
-                index = endIndex;
+                index = normalizedEndIndex;
                 element = bottomElement;
 
                 while (element && index > nextEndIndex && element !== topSpacer) {
-                    cacheRef.current[index++] = element[propName.clientHeight];
-                    index++;
+                    cacheRef.current[index] = element[propName.clientHeight];
+                    index--;
                     element = element.previousSibling as Element | null;
                 }
             }
@@ -344,7 +345,7 @@ const ViewportListInner = <T extends any>(
             return;
         }
 
-        let index = startIndex;
+        let index = normalizedStartIndex;
         let element: Element | null = topElement;
         let sizeDiff = 0;
 
@@ -366,7 +367,7 @@ const ViewportListInner = <T extends any>(
 
         anchorIndexRef.current = -1;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [startIndex]);
+    }, [normalizedStartIndex]);
 
     useImperativeHandle(
         ref,
@@ -381,7 +382,9 @@ const ViewportListInner = <T extends any>(
     return (
         <Fragment>
             <div ref={topSpacerRef} style={topSpacerStyle} />
-            {items.slice(startIndex, endIndex + 1).map((item, index) => children(item, startIndex + index, items))}
+            {items
+                .slice(normalizedStartIndex, normalizedEndIndex + 1)
+                .map((item, index) => children(item, normalizedStartIndex + index, items))}
             <div ref={bottomSpacerRef} style={bottomSpacerStyle} />
         </Fragment>
     );
