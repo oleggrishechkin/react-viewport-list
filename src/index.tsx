@@ -110,6 +110,7 @@ export interface ViewportListProps<T> {
     initialOffset?: number;
     fixed?: boolean;
     children: (item: T, index: number, array: T[]) => any;
+    onViewportIndexesChange?: (viewportIndexes: [number, number]) => void;
 }
 
 const ViewportListInner = <T extends any>(
@@ -124,7 +125,8 @@ const ViewportListInner = <T extends any>(
         initialAlignToTop = true,
         initialOffset = 0,
         fixed = false,
-        children
+        children,
+        onViewportIndexesChange
     }: ViewportListProps<T>,
     ref: ForwardedRef<ViewportListRef>
 ) => {
@@ -151,6 +153,7 @@ const ViewportListInner = <T extends any>(
     );
     const anchorIndexRef = useRef(-1);
     const marginTopRef = useRef(0);
+    const viewportIndexesRef = useRef<[number, number]>([-1, -1]);
     const topSpacerStyle = useMemo(
         () =>
             getStyle(
@@ -208,15 +211,17 @@ const ViewportListInner = <T extends any>(
         const viewportRect = viewport.getBoundingClientRect();
         const topElementRect = topElement.getBoundingClientRect();
         const bottomElementRect = bottomElement.getBoundingClientRect();
-        const topLimit =
-            normalizeValue(0, viewportRect[propName.top], document.documentElement[propName.clientHeight]) -
-            overscanSize;
-        const bottomLimit =
-            normalizeValue(0, viewportRect[propName.bottom], document.documentElement[propName.clientHeight]) +
-            overscanSize;
+        const topLimit = normalizeValue(0, viewportRect[propName.top], document.documentElement[propName.clientHeight]);
+        const bottomLimit = normalizeValue(
+            0,
+            viewportRect[propName.bottom],
+            document.documentElement[propName.clientHeight]
+        );
+        const topLimitWithOverscanSize = topLimit - overscanSize;
+        const bottomLimitWithOverscanSize = bottomLimit + overscanSize;
         const maxItemsCountInViewPort = normalizeValue(
             0,
-            Math.ceil((bottomLimit - topLimit) / itemMinSizeWithMargin),
+            Math.ceil((bottomLimitWithOverscanSize - topLimitWithOverscanSize) / itemMinSizeWithMargin),
             items.length
         );
         let nextStartIndex = normalizedStartIndex;
@@ -253,12 +258,13 @@ const ViewportListInner = <T extends any>(
             nextEndIndex = targetIndex + maxItemsCountInViewPort;
         } else if (fixed) {
             nextStartIndex = Math.floor(
-                (topLimit - topSpacerRef.current.getBoundingClientRect()[propName.top]) / itemMinSizeWithMargin
+                (topLimitWithOverscanSize - topSpacerRef.current.getBoundingClientRect()[propName.top]) /
+                    itemMinSizeWithMargin
             );
             nextEndIndex = nextStartIndex + maxItemsCountInViewPort;
-        } else if (topElementRect[propName.top] >= bottomLimit) {
+        } else if (topElementRect[propName.top] >= bottomLimitWithOverscanSize) {
             // fast scroll up
-            let diff = topElementRect[propName.top] - bottomLimit;
+            let diff = topElementRect[propName.top] - bottomLimitWithOverscanSize;
 
             nextEndIndex = normalizedStartIndex;
 
@@ -269,9 +275,9 @@ const ViewportListInner = <T extends any>(
 
             anchorIndexRef.current = normalizedStartIndex;
             nextStartIndex = nextEndIndex - maxItemsCountInViewPort;
-        } else if (bottomElementRect[propName.bottom] + margin <= topLimit) {
+        } else if (bottomElementRect[propName.bottom] + margin <= topLimitWithOverscanSize) {
             // fast scroll down
-            let diff = topLimit - bottomElementRect[propName.bottom] + margin;
+            let diff = topLimitWithOverscanSize - bottomElementRect[propName.bottom] + margin;
 
             nextStartIndex = normalizedEndIndex;
 
@@ -282,12 +288,12 @@ const ViewportListInner = <T extends any>(
 
             nextEndIndex = nextStartIndex + maxItemsCountInViewPort;
         } else {
-            if (topElementRect[propName.bottom] + margin < topLimit) {
+            if (topElementRect[propName.bottom] + margin < topLimitWithOverscanSize) {
                 // scroll down (correction)
                 nextStartIndex++;
-            } else if (topElementRect[propName.top] >= topLimit) {
+            } else if (topElementRect[propName.top] >= topLimitWithOverscanSize) {
                 // scroll up
-                let diff = topElementRect[propName.top] - topLimit;
+                let diff = topElementRect[propName.top] - topLimitWithOverscanSize;
 
                 while (diff >= 0 && nextStartIndex > MIN_INDEX) {
                     nextStartIndex--;
@@ -297,15 +303,15 @@ const ViewportListInner = <T extends any>(
                 anchorIndexRef.current = normalizedStartIndex;
             }
 
-            if (bottomElementRect[propName.bottom] + margin <= bottomLimit) {
+            if (bottomElementRect[propName.bottom] + margin <= bottomLimitWithOverscanSize) {
                 // scroll down
-                let diff = bottomLimit - bottomElementRect[propName.bottom] - margin;
+                let diff = bottomLimitWithOverscanSize - bottomElementRect[propName.bottom] - margin;
 
                 while (diff >= 0 && nextEndIndex < maxIndex) {
                     nextEndIndex++;
                     diff -= (cacheRef.current[nextEndIndex] || normalizedItemMinSize) + margin;
                 }
-            } else if (bottomElementRect[propName.top] > bottomLimit) {
+            } else if (bottomElementRect[propName.top] > bottomLimitWithOverscanSize) {
                 // scroll up (correction)
                 nextEndIndex--;
             }
@@ -313,6 +319,50 @@ const ViewportListInner = <T extends any>(
 
         nextStartIndex = normalizeValue(MIN_INDEX, nextStartIndex, maxIndex);
         nextEndIndex = normalizeValue(nextStartIndex, nextEndIndex, maxIndex);
+
+        if (onViewportIndexesChange) {
+            let index = normalizedStartIndex;
+            let element: Element | null = topElement;
+            let startViewportIndex = -1;
+
+            while (element && index < normalizedEndIndex && element !== bottomSpacer) {
+                if (element.getBoundingClientRect()[propName.bottom] > topLimit) {
+                    startViewportIndex = index;
+
+                    break;
+                }
+
+                index++;
+                element = element.nextSibling as Element | null;
+            }
+
+            index = normalizedEndIndex;
+            element = bottomElement;
+
+            let endViewportIndex = -1;
+
+            while (element && index > normalizedStartIndex && element !== topSpacer) {
+                if (element.getBoundingClientRect()[propName.top] < bottomLimit) {
+                    endViewportIndex = index;
+
+                    break;
+                }
+
+                index--;
+                element = element.previousSibling as Element | null;
+            }
+
+            if (
+                startViewportIndex !== viewportIndexesRef.current[0] ||
+                endViewportIndex !== viewportIndexesRef.current[1]
+            ) {
+                viewportIndexesRef.current = [
+                    startViewportIndex === -1 ? normalizedStartIndex : startViewportIndex,
+                    endViewportIndex === -1 ? normalizedEndIndex : endViewportIndex
+                ];
+                onViewportIndexesChange(viewportIndexesRef.current);
+            }
+        }
 
         if (nextStartIndex !== normalizedStartIndex || nextEndIndex !== normalizedEndIndex) {
             if (fixed) {
