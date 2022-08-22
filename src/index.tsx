@@ -323,9 +323,9 @@ const ViewportListInner = <T extends any>(
         if (onViewportIndexesChange) {
             let index = normalizedStartIndex;
             let element: Element | null = topElement;
-            let startViewportIndex = -1;
+            let startViewportIndex = normalizedStartIndex;
 
-            while (element && index < normalizedEndIndex && element !== bottomSpacer) {
+            while (element && element !== bottomSpacer) {
                 if (element.getBoundingClientRect()[propName.bottom] > topLimit) {
                     startViewportIndex = index;
 
@@ -339,9 +339,9 @@ const ViewportListInner = <T extends any>(
             index = normalizedEndIndex;
             element = bottomElement;
 
-            let endViewportIndex = -1;
+            let endViewportIndex = normalizedEndIndex;
 
-            while (element && index > normalizedStartIndex && element !== topSpacer) {
+            while (element && element !== topSpacer) {
                 if (element.getBoundingClientRect()[propName.top] < bottomLimit) {
                     endViewportIndex = index;
 
@@ -356,10 +356,7 @@ const ViewportListInner = <T extends any>(
                 startViewportIndex !== viewportIndexesRef.current[0] ||
                 endViewportIndex !== viewportIndexesRef.current[1]
             ) {
-                viewportIndexesRef.current = [
-                    startViewportIndex === -1 ? normalizedStartIndex : startViewportIndex,
-                    endViewportIndex === -1 ? normalizedEndIndex : endViewportIndex
-                ];
+                viewportIndexesRef.current = [startViewportIndex, endViewportIndex];
                 onViewportIndexesChange(viewportIndexesRef.current);
             }
         }
