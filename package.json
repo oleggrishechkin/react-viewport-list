@@ -36,6 +36,7 @@
         "lint": "eslint --quiet .",
         "lint:fix": "eslint --quiet --fix .",
         "prettier:fix": "prettier --write .",
+        "prettier:fix:readme": "prettier --tab-width 2 --print-width 50 --write README.md",
         "prepare": "husky install && rimraf lib && tsc"
     },
     "devDependencies": {
