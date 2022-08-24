@@ -85,16 +85,14 @@ const useRecursiveAnimationFrame = (func: () => void) => {
     stepRef.current = func;
     useEffect(() => {
         let frameId: number;
-        const frame = (): void => {
+        const frame = () => {
             frameId = requestAnimationFrame(frame);
             stepRef.current();
         };
 
         frame();
 
-        return () => {
-            cancelAnimationFrame(frameId);
-        };
+        return () => cancelAnimationFrame(frameId);
     }, []);
 };
 
@@ -142,7 +140,7 @@ const ViewportListInner = <T extends any>(
     const itemMinSizeWithMargin = normalizedItemMinSize + margin;
     const overscanSize = Math.ceil(Math.max(0, overscan) * itemMinSizeWithMargin);
     const [indexes, setIndexes] = useState([initialIndex, initialIndex]);
-    const startIndex = (indexes[0] = normalizeValue(0, indexes[0], maxIndex));
+    const startIndex = (indexes[0] = normalizeValue(MIN_INDEX, indexes[0], maxIndex));
     const endIndex = (indexes[1] = normalizeValue(startIndex, indexes[1], maxIndex));
     const topSpacerRef = useRef<HTMLDivElement>(null);
     const bottomSpacerRef = useRef<HTMLDivElement>(null);
@@ -152,9 +150,9 @@ const ViewportListInner = <T extends any>(
         alignToTop: boolean | ScrollIntoViewOptions;
         offset: number;
     } | null>(startIndex ? { index: startIndex, alignToTop: initialAlignToTop, offset: initialOffset } : null);
-    const anchorIndexRef = useRef(-1);
     const marginTopRef = useRef(0);
     const viewportIndexesRef = useRef<[number, number]>([-1, -1]);
+    const anchorIndexRef = useRef(-1);
     const topSpacerStyle = useMemo(
         () =>
             getStyle(
@@ -367,35 +365,37 @@ const ViewportListInner = <T extends any>(
         nextStartIndex = normalizeValue(MIN_INDEX, nextStartIndex, maxIndex);
         nextEndIndex = normalizeValue(nextStartIndex, nextEndIndex, maxIndex);
 
-        if (nextStartIndex !== startIndex || nextEndIndex !== endIndex) {
-            if (nextStartIndex !== startIndex) {
-                anchorIndexRef.current = Math.max(nextStartIndex, startIndex);
-            }
-
-            if (fixed) {
-                cacheRef.current = [];
-            } else {
-                let index = startIndex;
-                let element: Element | null = topElement;
-
-                while (element && index < nextStartIndex && element !== bottomSpacer) {
-                    cacheRef.current[index] = element[propName.clientHeight];
-                    index++;
-                    element = element.nextSibling as Element | null;
-                }
-
-                index = endIndex;
-                element = bottomElement;
-
-                while (element && index > nextEndIndex && element !== topSpacer) {
-                    cacheRef.current[index] = element[propName.clientHeight];
-                    index--;
-                    element = element.previousSibling as Element | null;
-                }
-            }
-
-            setIndexes([nextStartIndex, nextEndIndex]);
+        if (nextStartIndex === startIndex && nextEndIndex === endIndex) {
+            return;
         }
+
+        if (nextStartIndex !== startIndex) {
+            anchorIndexRef.current = Math.max(nextStartIndex, startIndex);
+        }
+
+        if (fixed) {
+            cacheRef.current = [];
+        } else {
+            let index = startIndex;
+            let element: Element | null = topElement;
+
+            while (element && index < nextStartIndex && element !== bottomSpacer) {
+                cacheRef.current[index] = element[propName.clientHeight];
+                index++;
+                element = element.nextSibling as Element | null;
+            }
+
+            index = endIndex;
+            element = bottomElement;
+
+            while (element && index > nextEndIndex && element !== topSpacer) {
+                cacheRef.current[index] = element[propName.clientHeight];
+                index--;
+                element = element.previousSibling as Element | null;
+            }
+        }
+
+        setIndexes([nextStartIndex, nextEndIndex]);
     });
 
     useIsomorphicLayoutEffect(() => {
@@ -441,9 +441,7 @@ const ViewportListInner = <T extends any>(
         }
 
         viewport[propName.scrollTop] += diff;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [startIndex]);
-
     useImperativeHandle(
         ref,
         () => ({
