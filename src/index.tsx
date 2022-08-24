@@ -14,8 +14,6 @@ import {
 
 const IS_SSR = typeof window === 'undefined';
 
-const MIN_INDEX = 0;
-
 const IS_TOUCH_DEVICE = IS_SSR
     ? false
     : (() => {
@@ -83,7 +81,7 @@ const useRecursiveAnimationFrame = (func: () => void) => {
     const stepRef = useRef(func);
 
     stepRef.current = func;
-    useEffect(() => {
+    useIsomorphicLayoutEffect(() => {
         let frameId: number;
         const frame = () => {
             frameId = requestAnimationFrame(frame);
@@ -124,7 +122,7 @@ const ViewportListInner = <T extends any>(
         margin = 0,
         overscan = 1,
         axis = 'y',
-        initialIndex = 0,
+        initialIndex = -1,
         initialAlignToTop = true,
         initialOffset = 0,
         fixed = false,
@@ -140,7 +138,7 @@ const ViewportListInner = <T extends any>(
     const itemMinSizeWithMargin = normalizedItemMinSize + margin;
     const overscanSize = Math.ceil(Math.max(0, overscan) * itemMinSizeWithMargin);
     const [indexes, setIndexes] = useState([initialIndex, initialIndex]);
-    const startIndex = (indexes[0] = normalizeValue(MIN_INDEX, indexes[0], maxIndex));
+    const startIndex = (indexes[0] = normalizeValue(0, indexes[0], maxIndex));
     const endIndex = (indexes[1] = normalizeValue(startIndex, indexes[1], maxIndex));
     const topSpacerRef = useRef<HTMLDivElement>(null);
     const bottomSpacerRef = useRef<HTMLDivElement>(null);
@@ -149,7 +147,7 @@ const ViewportListInner = <T extends any>(
         index: number;
         alignToTop: boolean | ScrollIntoViewOptions;
         offset: number;
-    } | null>(startIndex ? { index: startIndex, alignToTop: initialAlignToTop, offset: initialOffset } : null);
+    } | null>(initialIndex >= 0 ? { index: initialIndex, alignToTop: initialAlignToTop, offset: initialOffset } : null);
     const marginTopRef = useRef(0);
     const viewportIndexesRef = useRef<[number, number]>([-1, -1]);
     const anchorIndexRef = useRef(-1);
@@ -158,7 +156,7 @@ const ViewportListInner = <T extends any>(
             getStyle(
                 propName,
                 cacheRef.current
-                    .slice(MIN_INDEX, startIndex)
+                    .slice(0, startIndex)
                     .reduce((sum, next) => sum + (next - normalizedItemMinSize), startIndex * itemMinSizeWithMargin),
                 marginTopRef.current
             ),
@@ -217,7 +215,7 @@ const ViewportListInner = <T extends any>(
         let nextEndIndex = endIndex;
 
         if (scrollToIndexRef.current) {
-            const targetIndex = normalizeValue(MIN_INDEX, scrollToIndexRef.current.index, maxIndex);
+            const targetIndex = normalizeValue(0, scrollToIndexRef.current.index, maxIndex);
 
             if (targetIndex >= startIndex && targetIndex <= endIndex) {
                 let index = startIndex;
@@ -259,7 +257,7 @@ const ViewportListInner = <T extends any>(
 
             nextEndIndex = startIndex;
 
-            while (diff >= 0 && nextEndIndex > MIN_INDEX) {
+            while (diff >= 0 && nextEndIndex > 0) {
                 nextEndIndex--;
                 diff -= (cacheRef.current[nextEndIndex] || normalizedItemMinSize) + margin;
             }
@@ -282,7 +280,7 @@ const ViewportListInner = <T extends any>(
                 // scroll up
                 let diff = topElementRect[propName.top] - topLimitWithOverscanSize;
 
-                while (diff >= 0 && nextStartIndex > MIN_INDEX) {
+                while (diff >= 0 && nextStartIndex > 0) {
                     nextStartIndex--;
                     diff -= (cacheRef.current[nextStartIndex] || normalizedItemMinSize) + margin;
                 }
@@ -362,7 +360,7 @@ const ViewportListInner = <T extends any>(
             }
         }
 
-        nextStartIndex = normalizeValue(MIN_INDEX, nextStartIndex, maxIndex);
+        nextStartIndex = normalizeValue(0, nextStartIndex, maxIndex);
         nextEndIndex = normalizeValue(nextStartIndex, nextEndIndex, maxIndex);
 
         if (nextStartIndex === startIndex && nextEndIndex === endIndex) {
