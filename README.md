@@ -39,12 +39,12 @@ Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
   import { ViewportList } from 'react-viewport-list';
 
   const ItemList = ({
-    items
+    items,
   }: {
     items: { id: string; title: string }[];
   }) => {
     const ref = useRef<HTMLDivElement | null>(
-      null
+      null,
     );
 
     return (
@@ -69,7 +69,7 @@ Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
 ## Props
 
 | name                      | type                                                                        | default  | description                                                                                                                                                                                                                                                 |
-|---------------------------|-----------------------------------------------------------------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------------- | --------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `viewportRef`             | MutableRefObject\<HTMLElement or null\> or RefObject\<HTMLElement or null\> | required | Viewport and scroll container.<br>`document.documentElement` will be used if `viewportRef` not provided.                                                                                                                                                    |
 | `items`                   | T[]                                                                         | []       | Array of items.                                                                                                                                                                                                                                             |
 | `itemMinSize`             | number                                                                      | 0        | Item average (estimated) size (`height` for `axis="y"` and `width` for `axis="x"`) in px.<br>Size should be greater or equal zero.<br>Size will be computed automatically if `itemMinSize` not provided or equal zero.                                      |
@@ -103,7 +103,7 @@ Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
   import { ViewportList } from 'react-viewport-list';
 
   const ItemList = ({
-    items
+    items,
   }: {
     items: { id: string; title: string }[];
   }) => {
@@ -153,10 +153,10 @@ You should remember that in some situations `will-change: transform` can cause p
 `ViewportList` render two elements (spacers) before first rendered item and after last rendered item.
 That's why children pseudo-classes like `:nth-child()`, `:last-child`, `:first-child` may work incorrectly.
 
-## Margin 
+## Margin
 
 If you want more accurate virtualizing you should use equal margin for all items.
-Also, you should use `margin-top` or `margin-bottom` (not both) for  `axis="y"` and `margin-right` or `margin-left` (not both) for  `axis="x"`.
+Also, you should use `margin-top` or `margin-bottom` (not both) for `axis="y"` and `margin-right` or `margin-left` (not both) for `axis="x"`.
 
 If you want to use different margins and stil want more accurate virtualizing you can wrap your items in some element like `<div>` and use `padding` instead of `margin`.
 
@@ -172,7 +172,7 @@ If you want to use different margins and stil want more accurate virtualizing yo
 
   const GroupedItemList = ({
     keyItems,
-    items
+    items,
   }: {
     keyItems: { id: string; title: string }[];
     items: { id: string; title: string }[];
@@ -222,23 +222,23 @@ If you want to use different margins and stil want more accurate virtualizing yo
   import { useRef } from 'react';
   import {
     SortableContainer,
-    SortableElement
+    SortableElement,
   } from 'react-sortable-hoc';
   import { ViewportList } from 'react-viewport-list';
 
   const SortableList = SortableContainer(
     ({ innerRef, ...rest }) => (
       <div {...rest} ref={innerRef} />
-    )
+    ),
   );
 
   const SortableItem = SortableElement(
-    (props) => <div {...props} />
+    (props) => <div {...props} />,
   );
 
   const SortableItemList = ({
     items,
-    onSortEnd
+    onSortEnd,
   }) => {
     const ref = useRef(null);
 
