@@ -9,7 +9,7 @@ import {
     MutableRefObject,
     forwardRef,
     ForwardedRef,
-    RefObject
+    RefObject,
 } from 'react';
 
 const IS_SSR = typeof window === 'undefined';
@@ -44,7 +44,7 @@ const PROP_NAME_FOR_Y_AXIS = {
     height: 'height',
     minHeight: 'minHeight',
     maxHeight: 'maxHeight',
-    marginTop: 'marginTop'
+    marginTop: 'marginTop',
 } as const;
 
 const PROP_NAME_FOR_X_AXIS = {
@@ -57,7 +57,7 @@ const PROP_NAME_FOR_X_AXIS = {
     minHeight: 'minWidth',
     height: 'width',
     maxHeight: 'maxWidth',
-    marginTop: 'marginLeft'
+    marginTop: 'marginLeft',
 } as const;
 
 const getStyle = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS, size: number, marginTop = 0) =>
@@ -71,7 +71,7 @@ const getStyle = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X
         [propName.minHeight]: size,
         [propName.height]: size,
         [propName.maxHeight]: size,
-        [propName.marginTop]: marginTop
+        [propName.marginTop]: marginTop,
     } as const);
 
 const normalizeValue = (min: number, value: number, max = Infinity) => Math.max(Math.min(value, max), min);
@@ -100,7 +100,7 @@ export interface ViewportListProps<T> {
     withCache?: boolean;
 }
 
-const ViewportListInner = <T extends any>(
+const ViewportListInner = <T,>(
     {
         viewportRef = { current: IS_SSR ? null : document.documentElement },
         items = [],
@@ -114,15 +114,15 @@ const ViewportListInner = <T extends any>(
         children,
         onViewportIndexesChange,
         overflowAnchor = 'auto',
-        withCache = true
+        withCache = true,
     }: ViewportListProps<T>,
-    ref: ForwardedRef<ViewportListRef>
+    ref: ForwardedRef<ViewportListRef>,
 ) => {
     const propName = axis === 'y' ? PROP_NAME_FOR_Y_AXIS : PROP_NAME_FOR_X_AXIS;
     const maxIndex = items.length - 1;
     const [[itemHeight, itemMargin], setItemDimensions] = useState(() => [
         normalizeValue(0, itemMinSize),
-        normalizeValue(-1, margin)
+        normalizeValue(-1, margin),
     ]);
     const itemHeightWithMargin = normalizeValue(0, itemHeight + itemMargin);
     const overscanSize = normalizeValue(0, Math.ceil(overscan * itemHeightWithMargin));
@@ -150,9 +150,9 @@ const ViewportListInner = <T extends any>(
                 cacheRef.current
                     .slice(0, startIndex)
                     .reduce((sum, next) => sum + (next - itemHeight), startIndex * itemHeightWithMargin),
-                marginTopRef.current
+                marginTopRef.current,
             ),
-        [propName, startIndex, itemHeightWithMargin, itemHeight]
+        [propName, startIndex, itemHeightWithMargin, itemHeight],
     );
     const bottomSpacerStyle = useMemo(
         () =>
@@ -161,9 +161,9 @@ const ViewportListInner = <T extends any>(
                 // Array.prototype.reduce() runs only for initialized items.
                 cacheRef.current
                     .slice(endIndex + 1, maxIndex + 1)
-                    .reduce((sum, next) => sum + (next - itemHeight), itemHeightWithMargin * (maxIndex - endIndex))
+                    .reduce((sum, next) => sum + (next - itemHeight), itemHeightWithMargin * (maxIndex - endIndex)),
             ),
-        [propName, endIndex, maxIndex, itemHeightWithMargin, itemHeight]
+        [propName, endIndex, maxIndex, itemHeightWithMargin, itemHeight],
     );
 
     stepRef.current = () => {
@@ -185,7 +185,7 @@ const ViewportListInner = <T extends any>(
         const bottomSpacerRect = bottomSpacer.getBoundingClientRect();
         const viewportWithMarginRect = {
             [propName.top]: viewportRect[propName.top] - overscanSize,
-            [propName.bottom]: viewportRect[propName.bottom] + overscanSize
+            [propName.bottom]: viewportRect[propName.bottom] + overscanSize,
         };
 
         if (
@@ -221,8 +221,8 @@ const ViewportListInner = <T extends any>(
         minAverageSizeRef.current = Math.min(
             minAverageSizeRef.current,
             Math.ceil(
-                (bottomSpacerRect[propName.top] - topSpacerRect[propName.bottom]) / (endIndex + 1 - startIndex)
-            ) || Infinity
+                (bottomSpacerRect[propName.top] - topSpacerRect[propName.bottom]) / (endIndex + 1 - startIndex),
+            ) || Infinity,
         );
 
         let nextStartIndex = startIndex;
@@ -273,7 +273,7 @@ const ViewportListInner = <T extends any>(
         // If top spacer is intersecting viewport
         if (topSpacerRect[propName.bottom] >= viewportWithMarginRect[propName.top]) {
             const diff = Math.ceil(
-                (topSpacerRect[propName.bottom] - viewportWithMarginRect[propName.top]) / minAverageSizeRef.current
+                (topSpacerRect[propName.bottom] - viewportWithMarginRect[propName.top]) / minAverageSizeRef.current,
             );
 
             nextStartIndex -= diff;
@@ -306,7 +306,7 @@ const ViewportListInner = <T extends any>(
         // If bottom spacer is intersecting viewport
         if (bottomSpacerRect[propName.top] <= viewportWithMarginRect[propName.bottom]) {
             const diff = Math.ceil(
-                (viewportWithMarginRect[propName.bottom] - bottomSpacerRect[propName.top]) / minAverageSizeRef.current
+                (viewportWithMarginRect[propName.bottom] - bottomSpacerRect[propName.top]) / minAverageSizeRef.current,
             );
 
             nextEndIndex += diff;
@@ -482,9 +482,9 @@ const ViewportListInner = <T extends any>(
         () => ({
             scrollToIndex: (index = -1, alignToTop = true, offset = 0) => {
                 scrollToIndexRef.current = { index, alignToTop, offset };
-            }
+            },
         }),
-        []
+        [],
     );
 
     return (
@@ -497,7 +497,7 @@ const ViewportListInner = <T extends any>(
 };
 
 export const ViewportList = forwardRef(ViewportListInner) as <T>(
-    props: ViewportListProps<T> & { ref?: ForwardedRef<ViewportListRef> }
+    props: ViewportListProps<T> & { ref?: ForwardedRef<ViewportListRef> },
 ) => ReturnType<typeof ViewportListInner>;
 
 // eslint-disable-next-line import/no-default-export
