@@ -78,7 +78,7 @@ Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
 | `axis`                    | "y" / "x"                                                                   | 'y'      | Scroll axis:<ul><li>"y" - vertical</li><li>"x" - horizontal</li></ul>                                                                                                                                                                                       |
 | `initialIndex`            | number                                                                      | -1       | Initial item index in viewport.                                                                                                                                                                                                                             |
 | `initialAlignToTop`       | boolean or ScrollIntoViewOptions                                            | true     | [scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) param.<br>Used with `initialIndex`                                                                                                                                |
-| `initialOffset`           | number                                                                      | 0        | Offset after `scrollIntoView` call.<br>Used with `initialIndex`                                                                                                                                                                                             |
+| `initialOffset`           | number                                                                      | 0        | Offset after `scrollIntoView` call.<br>Used with `initialIndex`.<br>This value will be added to the scroll after scroll to index.                                                                                                                           |
 | `children`                | (item: T, index: number, array: T[]) => ReactNode                           | required | Item render function.<br>Similar to [`Array.Prototype.map()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map).                                                                                                  |
 | `onViewportIndexesChange` | (viewportIndexes: [number, number]) => void                                 | optional | Will be called on rendered in viewport indexes change.                                                                                                                                                                                                      |
 | `overflowAnchor`          | "none" / "auto"                                                             | "auto"   | Compatibility for `overflow-anchor: none`.<br>Set it to "none" if you use `overflow-anchor: none` in your parent container styles.                                                                                                                          |
@@ -86,55 +86,55 @@ Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
 
 ## Methods
 
-- ### scrollToIndex
+### scrollToIndex
 
-  **Params**
+**Params**
 
-  | name         | type                             | default | description                                                                                      |
-  | ------------ | -------------------------------- | ------- | ------------------------------------------------------------------------------------------------ |
-  | `index`      | number                           | -1      | Item index for scroll.                                                                           |
-  | `alignToTop` | boolean or ScrollIntoViewOptions | true    | [scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) param. |
-  | `offset`     | number                           | 0       | Offset after `scrollIntoView ` call.                                                             |
+| name         | type                             | default | description                                                                                           |
+| ------------ | -------------------------------- | ------- | ----------------------------------------------------------------------------------------------------- |
+| `index`      | number                           | -1      | Item index for scroll.                                                                                |
+| `alignToTop` | boolean or ScrollIntoViewOptions | true    | [scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) param.      |
+| `offset`     | number                           | 0       | Offset after `scrollIntoView ` call.<br>This value will be added to the scroll after scroll to index. |
 
-  **Usage**
+**Usage**
 
-  ```typescript jsx
-  import { useRef } from 'react';
-  import { ViewportList } from 'react-viewport-list';
+```typescript jsx
+import { useRef } from 'react';
+import { ViewportList } from 'react-viewport-list';
 
-  const ItemList = ({
-    items,
-  }: {
-    items: { id: string; title: string }[];
-  }) => {
-    const ref = useRef(null);
-    const listRef = useRef(null);
+const ItemList = ({
+  items,
+}: {
+  items: { id: string; title: string }[];
+}) => {
+  const ref = useRef(null);
+  const listRef = useRef(null);
 
-    return (
-      <div className="scroll-container" ref={ref}>
-        <ViewportList
-          ref={listRef}
-          viewportRef={ref}
-          items={items}
-        >
-          {(item) => (
-            <div key={item.id} className="item">
-              {item.title}
-            </div>
-          )}
-        </ViewportList>
-        <button
-          className="up-button"
-          onClick={() =>
-            listRef.current.scrollToIndex(0)
-          }
-        />
-      </div>
-    );
-  };
+  return (
+    <div className="scroll-container" ref={ref}>
+      <ViewportList
+        ref={listRef}
+        viewportRef={ref}
+        items={items}
+      >
+        {(item) => (
+          <div key={item.id} className="item">
+            {item.title}
+          </div>
+        )}
+      </ViewportList>
+      <button
+        className="up-button"
+        onClick={() =>
+          listRef.current.scrollToIndex(0)
+        }
+      />
+    </div>
+  );
+};
 
-  export { ItemList };
-  ```
+export { ItemList };
+```
 
 ## Performance
 
@@ -267,4 +267,55 @@ If you want to use different margins and stil want more accurate virtualizing yo
   };
 
   export { SortableItemList };
+  ```
+
+- ### Scroll to position
+
+  Scroll to position may work incorrectly because scrollHeight and scrollTop (or scrollWidth and scrollLeft) changed automatically while scrolling.
+  But you can scroll to position with `scrollToIndex` method with `{ index: 0, offset: scrollPosition }`. For initial scroll to position you can use `initialIndex={0}` and `initialOffset={scrollPosition}`. You should remember that after scroll happened scroll position can be not equal to specified offset.
+
+  ```typescript jsx
+  import { useRef } from 'react';
+  import { ViewportList } from 'react-viewport-list';
+
+  const ItemList = ({
+    items,
+    savedScroll,
+  }: {
+    items: { id: string; title: string }[];
+    savedScroll: number;
+  }) => {
+    const ref = useRef(null);
+    const listRef = useRef(null);
+
+    return (
+      <div className="scroll-container" ref={ref}>
+        <ViewportList
+          ref={listRef}
+          viewportRef={ref}
+          items={items}
+          initialIndex={0}
+          initialOffset={savedScroll}
+        >
+          {(item) => (
+            <div key={item.id} className="item">
+              {item.title}
+            </div>
+          )}
+        </ViewportList>
+        <button
+          className="up-button"
+          onClick={() => {
+            // this sets scrollTop of "scroll-container" to 1000
+            listRef.current.scrollToIndex({
+              index: 0,
+              offset: 1000,
+            });
+          }}
+        />
+      </div>
+    );
+  };
+
+  export { ItemList };
   ```
