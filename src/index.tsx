@@ -83,7 +83,10 @@ export interface ViewportListRef {
 }
 
 export interface ViewportListProps<T> {
-    viewportRef?: MutableRefObject<HTMLElement | null> | RefObject<HTMLElement | null>;
+    viewportRef?:
+        | MutableRefObject<HTMLElement | null>
+        | RefObject<HTMLElement | null>
+        | { current: HTMLElement | null };
     items?: T[];
     // itemMinSize should be 0 or greater. It's estimated item size. Name saved for backward compatibility.
     itemMinSize?: number;
@@ -183,15 +186,22 @@ const ViewportListInner = <T,>(
         const viewportRect = viewport.getBoundingClientRect();
         const topSpacerRect = topSpacer.getBoundingClientRect();
         const bottomSpacerRect = bottomSpacer.getBoundingClientRect();
-        const viewportWithMarginRect = {
-            [propName.top]: viewportRect[propName.top] - overscanSize,
-            [propName.bottom]: viewportRect[propName.bottom] + overscanSize,
+        const limits = {
+            [propName.top]: viewport === document.documentElement ? 0 : viewportRect[propName.top],
+            [propName.bottom]:
+                viewport === document.documentElement
+                    ? document.documentElement.clientHeight
+                    : viewportRect[propName.bottom],
+        };
+        const limitsWithOverscanSize = {
+            [propName.top]: limits[propName.top] - overscanSize,
+            [propName.bottom]: limits[propName.bottom] + overscanSize,
         };
 
         if (
             (marginTopRef.current < 0 &&
-                topSpacerRect[propName.top] - marginTopRef.current >= viewportWithMarginRect[propName.top]) ||
-            (marginTopRef.current > 0 && topSpacerRect[propName.top] >= viewportWithMarginRect[propName.top])
+                topSpacerRect[propName.top] - marginTopRef.current >= limitsWithOverscanSize[propName.top]) ||
+            (marginTopRef.current > 0 && topSpacerRect[propName.top] >= limitsWithOverscanSize[propName.top])
         ) {
             topSpacer.style[propName.marginTop] = '0px';
             viewport.style[propName.overflowY] = 'hidden';
@@ -271,9 +281,9 @@ const ViewportListInner = <T,>(
         }
 
         // If top spacer is intersecting viewport
-        if (topSpacerRect[propName.bottom] >= viewportWithMarginRect[propName.top]) {
+        if (topSpacerRect[propName.bottom] >= limitsWithOverscanSize[propName.top]) {
             const diff = Math.ceil(
-                (topSpacerRect[propName.bottom] - viewportWithMarginRect[propName.top]) / minAverageSizeRef.current,
+                (topSpacerRect[propName.bottom] - limitsWithOverscanSize[propName.top]) / minAverageSizeRef.current,
             );
 
             nextStartIndex -= diff;
@@ -281,13 +291,13 @@ const ViewportListInner = <T,>(
             // If bottom second element is not intersecting viewport
             if (
                 bottomSecondElement !== topSpacer &&
-                bottomSecondElement.getBoundingClientRect()[propName.bottom] > viewportWithMarginRect[propName.bottom]
+                bottomSecondElement.getBoundingClientRect()[propName.bottom] > limitsWithOverscanSize[propName.bottom]
             ) {
                 let index = endIndex;
                 let element: Element | null = bottomElement;
 
                 while (element && element !== topSpacer) {
-                    if (element.getBoundingClientRect()[propName.bottom] <= viewportWithMarginRect[propName.bottom]) {
+                    if (element.getBoundingClientRect()[propName.bottom] <= limitsWithOverscanSize[propName.bottom]) {
                         nextEndIndex = index + 1;
 
                         break;
@@ -304,9 +314,9 @@ const ViewportListInner = <T,>(
         }
 
         // If bottom spacer is intersecting viewport
-        if (bottomSpacerRect[propName.top] <= viewportWithMarginRect[propName.bottom]) {
+        if (bottomSpacerRect[propName.top] <= limitsWithOverscanSize[propName.bottom]) {
             const diff = Math.ceil(
-                (viewportWithMarginRect[propName.bottom] - bottomSpacerRect[propName.top]) / minAverageSizeRef.current,
+                (limitsWithOverscanSize[propName.bottom] - bottomSpacerRect[propName.top]) / minAverageSizeRef.current,
             );
 
             nextEndIndex += diff;
@@ -314,13 +324,13 @@ const ViewportListInner = <T,>(
             // If top second element is not intersecting viewport
             if (
                 topSecondElement !== bottomSpacer &&
-                topSecondElement.getBoundingClientRect()[propName.top] < viewportWithMarginRect[propName.top]
+                topSecondElement.getBoundingClientRect()[propName.top] < limitsWithOverscanSize[propName.top]
             ) {
                 let index = startIndex;
                 let element: Element | null = topElement;
 
                 while (element && element !== bottomSpacer) {
-                    if (element.getBoundingClientRect()[propName.top] >= viewportWithMarginRect[propName.top]) {
+                    if (element.getBoundingClientRect()[propName.top] >= limitsWithOverscanSize[propName.top]) {
                         nextStartIndex = index - 1;
 
                         break;
@@ -342,7 +352,7 @@ const ViewportListInner = <T,>(
             let startViewportIndex = startIndex;
 
             while (element && element !== bottomSpacer) {
-                if (element.getBoundingClientRect()[propName.bottom] > viewportRect[propName.top]) {
+                if (element.getBoundingClientRect()[propName.bottom] > limits[propName.top]) {
                     startViewportIndex = index;
 
                     break;
@@ -358,7 +368,7 @@ const ViewportListInner = <T,>(
             let endViewportIndex = endIndex;
 
             while (element && element !== topSpacer) {
-                if (element.getBoundingClientRect()[propName.top] < viewportRect[propName.bottom]) {
+                if (element.getBoundingClientRect()[propName.top] < limits[propName.bottom]) {
                     endViewportIndex = index;
 
                     break;
