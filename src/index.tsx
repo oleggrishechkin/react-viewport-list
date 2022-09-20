@@ -251,7 +251,7 @@ const ViewportListInner = <T,>(
 
             const targetIndex = normalizeValue(0, scrollToIndexRef.current.index, maxIndex);
 
-            if (targetIndex < startIndex && targetIndex > endIndex) {
+            if (targetIndex < startIndex || targetIndex > endIndex) {
                 setIndexes([targetIndex, targetIndex]);
 
                 return;
