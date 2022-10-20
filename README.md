@@ -160,6 +160,11 @@ Also, you should use `margin-top` or `margin-bottom` (not both) for `axis="y"` a
 
 If you want to use different margins and stil want more accurate virtualizing you can wrap your items in some element like `<div>` and use `padding` instead of `margin`.
 
+## Non-keyed
+
+You should avoid non-keyed usage of list. You should provide unique key prop for each list items.
+If you have issues with scroll in Safari and other browsers without `overflow-anchor` support, check item's `key` prop.
+
 ## Advanced Usage
 
 - ### Grouping
@@ -318,4 +323,39 @@ If you want to use different margins and stil want more accurate virtualizing yo
   };
 
   export { ItemList };
+  ```
+
+- ### Tests
+
+  You can mock ViewportList for unit tests:
+
+  ```javascript
+  import {
+      useImperativeHandle,
+      forwardRef,
+  } from 'react';
+  
+  
+  export const ViewportListMock = forwardRef((
+      { items = [], children },
+      ref
+  ) => {
+      useImperativeHandle(
+          ref,
+          () => ({
+              scrollToIndex: () => {},
+          }),
+          [],
+      );
+  
+      return (
+          <>
+              <div />
+              {items.map(children)}
+              <div />
+          </>
+      );
+  });
+
+  export default ViewportListMock;
   ```

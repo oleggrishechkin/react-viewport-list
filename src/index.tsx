@@ -143,6 +143,7 @@ const ViewportListInner = <T,>(
     const marginTopRef = useRef(0);
     const viewportIndexesRef = useRef<[number, number]>([-1, -1]);
     const anchorElementRef = useRef<Element | null>(null);
+    const anchorIndexRef = useRef<number>(-1);
     const minAverageSizeRef = useRef(Infinity);
     const stepRef = useRef(() => {});
     const topSpacerStyle = useMemo(
@@ -397,16 +398,21 @@ const ViewportListInner = <T,>(
         if (nextStartIndex !== startIndex) {
             const anchorIndex = Math.max(nextStartIndex, startIndex);
             let anchorElement: Element | null = null;
+            let anchorElementIndex = -1;
 
             if (anchorIndex === startIndex && anchorIndex <= nextEndIndex) {
                 anchorElement = topElement;
+                anchorElementIndex = startIndex;
             } else if (anchorIndex === nextStartIndex && anchorIndex <= endIndex) {
+                anchorIndexRef.current = anchorIndex;
+
                 let index = startIndex;
                 let element: Element | null = topElement;
 
                 while (element && element !== bottomSpacer) {
                     if (index === anchorIndex) {
                         anchorElement = element;
+                        anchorElementIndex = index;
 
                         break;
                     }
@@ -421,6 +427,7 @@ const ViewportListInner = <T,>(
             }
 
             anchorElementRef.current = anchorElement;
+            anchorIndexRef.current = anchorElementIndex;
         }
 
         setIndexes([nextStartIndex, nextEndIndex]);
@@ -449,22 +456,45 @@ const ViewportListInner = <T,>(
     }
 
     useIsomorphicLayoutEffect(() => {
-        const anchorElement = anchorElementRef.current;
-
         anchorElementRef.current = null;
+
+        const anchorIndex = anchorIndexRef.current;
+
+        anchorIndexRef.current = -1;
 
         const viewport = viewportRef.current;
         const topSpacer = topSpacerRef.current;
+        const bottomSpacer = bottomSpacerRef.current;
 
         if (
             (IS_OVERFLOW_ANCHOR_SUPPORTED && overflowAnchor !== 'none') ||
-            !anchorElement ||
+            anchorIndex === -1 ||
             !viewport ||
             !topSpacer ||
+            !bottomSpacer ||
             anchorScrollTopOnRender === undefined ||
             anchorHeightOnRender === undefined ||
-            anchorScrollTopOnRender !== viewport[propName.scrollTop]
+            anchorScrollTopOnRender !== viewportRef.current[propName.scrollTop]
         ) {
+            return;
+        }
+
+        let anchorElement: Element | null = null;
+        let index = startIndex;
+        let element: Element | null = topSpacer.nextSibling as Element;
+
+        while (element && element !== bottomSpacer) {
+            if (index === anchorIndex) {
+                anchorElement = element;
+
+                break;
+            }
+
+            index++;
+            element = element.nextSibling as Element | null;
+        }
+
+        if (!anchorElement) {
             return;
         }
 
@@ -479,12 +509,12 @@ const ViewportListInner = <T,>(
 
         if (IS_TOUCH_DEVICE) {
             marginTopRef.current -= offset;
-            topSpacer.style[propName.marginTop] = `${marginTopRef.current}px`;
+            topSpacerRef.current.style[propName.marginTop] = `${marginTopRef.current}px`;
 
             return;
         }
 
-        viewport[propName.scrollTop] += offset;
+        viewportRef.current[propName.scrollTop] += offset;
     }, [startIndex]);
 
     useImperativeHandle(
