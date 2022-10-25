@@ -10,6 +10,7 @@ import {
     forwardRef,
     ForwardedRef,
     RefObject,
+    createElement,
 } from 'react';
 
 const IS_SSR = typeof window === 'undefined';
@@ -121,6 +122,7 @@ export interface ViewportListProps<T> {
     overflowAnchor?: 'none' | 'auto';
     withCache?: boolean;
     scrollThreshold?: number;
+    spacerElement?: keyof JSX.IntrinsicElements;
 }
 
 const getDiff = (value1: number, value2: number, step: number) => Math.ceil(Math.abs(value1 - value2) / step);
@@ -141,6 +143,7 @@ const ViewportListInner = <T,>(
         overflowAnchor = 'auto',
         withCache = true,
         scrollThreshold = 0,
+        spacerElement = 'div',
     }: ViewportListProps<T>,
     ref: ForwardedRef<ViewportListRef>,
 ) => {
@@ -155,8 +158,8 @@ const ViewportListInner = <T,>(
     const [indexes, setIndexes] = useState([initialIndex, initialIndex]);
     const startIndex = (indexes[0] = normalizeValue(0, indexes[0], maxIndex));
     const endIndex = (indexes[1] = normalizeValue(startIndex, indexes[1], maxIndex));
-    const topSpacerRef = useRef<HTMLDivElement>(null);
-    const bottomSpacerRef = useRef<HTMLDivElement>(null);
+    const topSpacerRef = useRef<any>(null);
+    const bottomSpacerRef = useRef<any>(null);
     const cacheRef = useRef<number[]>([]);
     const scrollToIndexRef = useRef<{
         index: number;
@@ -562,9 +565,9 @@ const ViewportListInner = <T,>(
 
     return (
         <Fragment>
-            <div ref={topSpacerRef} style={topSpacerStyle} />
+            {createElement(spacerElement, { ref: topSpacerRef, style: topSpacerStyle })}
             {items.slice(startIndex, endIndex + 1).map((item, index) => children(item, startIndex + index, items))}
-            <div ref={bottomSpacerRef} style={bottomSpacerStyle} />
+            {createElement(spacerElement, { ref: bottomSpacerRef, style: bottomSpacerStyle })}
         </Fragment>
     );
 };
