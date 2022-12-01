@@ -16,7 +16,7 @@
 
 - Simple API like [**Array.Prototype.map()**](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map)
 - Created for **dynamic** item `height` or `width` (if you don't know item size)
-- Works perfectly with **Flexbox** (unlike other libraries with `pisition: absolute`)
+- Works perfectly with **Flexbox** (unlike other libraries with `position: absolute`)
 - Supports **scroll to index**
 - Supports **initial index**
 - Supports **vertical** ↕ and **horizontal** ↔ lists️️
@@ -84,7 +84,8 @@ Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
 | `overflowAnchor`          | "none" / "auto"                                                                      | "auto"   | Compatibility for `overflow-anchor: none`.<br>Set it to "none" if you use `overflow-anchor: none` in your parent container styles.                                                                                                                          |
 | `withCache`               | boolean                                                                              | true     | Cache rendered item heights.                                                                                                                                                                                                                                |
 | `scrollThreshold`         | number                                                                               | 0        | If scroll diff more than `scrollThreshold` setting indexes was skipped. It's can be useful for better fast scroll UX.                                                                                                                                       |
-| `spocerElement`           | keyof JSX.IntrinsicElements                                                          | "div"    | If some rare cases you should use specific elements instead of div for spacers                                                                                                                                                                              |
+| `spacerElement`           | keyof JSX.IntrinsicElements                                                          | "div"    | In some rare cases you should use specific elements instead of div for spacers                                                                                                                                                                              |
+| `spacerStyle`             | CSSProperties                                                                        | {}       | If some additional style required for spacers. It will be applied for both spacers.                                                                                                                                                                         |
 
 ## Methods
 
