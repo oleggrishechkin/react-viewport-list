@@ -11,6 +11,7 @@ import {
     ForwardedRef,
     RefObject,
     createElement,
+    CSSProperties,
 } from 'react';
 
 const IS_SSR = typeof window === 'undefined';
@@ -123,6 +124,7 @@ export interface ViewportListProps<T> {
     withCache?: boolean;
     scrollThreshold?: number;
     spacerElement?: keyof JSX.IntrinsicElements;
+    spacerStyle?: CSSProperties;
 }
 
 const getDiff = (value1: number, value2: number, step: number) => Math.ceil(Math.abs(value1 - value2) / step);
@@ -144,6 +146,7 @@ const ViewportListInner = <T,>(
         withCache = true,
         scrollThreshold = 0,
         spacerElement = 'div',
+        spacerStyle = {},
     }: ViewportListProps<T>,
     ref: ForwardedRef<ViewportListRef>,
 ) => {
@@ -171,8 +174,9 @@ const ViewportListInner = <T,>(
     const anchorElementRef = useRef<Element | null>(null);
     const anchorIndexRef = useRef<number>(-1);
     const topSpacerStyle = useMemo(
-        () =>
-            getStyle(
+        () => ({
+            ...spacerStyle,
+            ...getStyle(
                 propName,
                 // Array.prototype.reduce() runs only for initialized items.
                 cacheRef.current
@@ -180,18 +184,21 @@ const ViewportListInner = <T,>(
                     .reduce((sum, next) => sum + (next - itemHeight), startIndex * itemHeightWithMargin),
                 marginTopRef.current,
             ),
-        [propName, startIndex, itemHeightWithMargin, itemHeight],
+        }),
+        [propName, startIndex, itemHeightWithMargin, itemHeight, spacerStyle],
     );
     const bottomSpacerStyle = useMemo(
-        () =>
-            getStyle(
+        () => ({
+            ...spacerStyle,
+            ...getStyle(
                 propName,
                 // Array.prototype.reduce() runs only for initialized items.
                 cacheRef.current
                     .slice(endIndex + 1, maxIndex + 1)
                     .reduce((sum, next) => sum + (next - itemHeight), itemHeightWithMargin * (maxIndex - endIndex)),
             ),
-        [propName, endIndex, maxIndex, itemHeightWithMargin, itemHeight],
+        }),
+        [propName, endIndex, maxIndex, itemHeightWithMargin, itemHeight, spacerStyle],
     );
     const scrollTopRef = useRef<number | null>(null);
 
