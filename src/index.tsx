@@ -36,6 +36,8 @@ const IS_OVERFLOW_ANCHOR_SUPPORTED = IS_SSR
           }
       })();
 
+const SHOULD_DELAY_SCROLL = IS_TOUCH_DEVICE && !IS_OVERFLOW_ANCHOR_SUPPORTED; // mobile Safari
+
 const PROP_NAME_FOR_Y_AXIS = {
     top: 'top',
     bottom: 'bottom',
@@ -100,7 +102,7 @@ const useAnimationFrame = (func: () => void) => {
 };
 
 export interface ViewportListRef {
-    scrollToIndex: (index?: number, alignToTop?: boolean | ScrollIntoViewOptions, offset?: number) => void;
+    scrollToIndex: (index?: number, alignToTop?: boolean, offset?: number) => void;
 }
 
 export interface ViewportListProps<T> {
@@ -116,7 +118,7 @@ export interface ViewportListProps<T> {
     overscan?: number;
     axis?: 'y' | 'x';
     initialIndex?: number;
-    initialAlignToTop?: boolean | ScrollIntoViewOptions;
+    initialAlignToTop?: boolean;
     initialOffset?: number;
     children: (item: T, index: number, array: T[]) => any;
     onViewportIndexesChange?: (viewportIndexes: [number, number]) => void;
@@ -173,6 +175,7 @@ const ViewportListInner = <T,>(
     const viewportIndexesRef = useRef<[number, number]>([-1, -1]);
     const anchorElementRef = useRef<Element | null>(null);
     const anchorIndexRef = useRef<number>(-1);
+    const scrollToIndexTimeoutId = useRef<any>(null);
     const topSpacerStyle = useMemo(
         () => ({
             ...spacerStyle,
@@ -266,6 +269,10 @@ const ViewportListInner = <T,>(
             (bottomSpacerRect[propName.top] - topSpacerRect[propName.bottom]) / (endIndex + 1 - startIndex),
         );
 
+        if (scrollToIndexTimeoutId.current) {
+            return;
+        }
+
         if (scrollToIndexRef.current) {
             const targetIndex = normalizeValue(0, scrollToIndexRef.current.index, maxIndex);
 
@@ -280,13 +287,32 @@ const ViewportListInner = <T,>(
 
             while (element && element !== bottomSpacer) {
                 if (index === targetIndex) {
-                    element.scrollIntoView(scrollToIndexRef.current.alignToTop);
-
-                    if (scrollToIndexRef.current.offset) {
-                        viewport[propName.scrollTop] += scrollToIndexRef.current.offset;
-                    }
+                    const alignToTop = scrollToIndexRef.current.alignToTop;
+                    const offset = scrollToIndexRef.current.offset;
 
                     scrollToIndexRef.current = null;
+
+                    const scrollToElement = () => {
+                        const elementRect = element!.getBoundingClientRect();
+
+                        if (alignToTop) {
+                            viewport[propName.scrollTop] += elementRect[propName.top] - limits[propName.top] + offset;
+                        } else {
+                            viewport[propName.scrollTop] +=
+                                elementRect[propName.bottom] -
+                                limits[propName.top] -
+                                viewport[propName.clientHeight] +
+                                offset;
+                        }
+
+                        scrollToIndexTimeoutId.current = null;
+                    };
+
+                    if (SHOULD_DELAY_SCROLL) {
+                        scrollToIndexTimeoutId.current = setTimeout(scrollToElement, 30);
+                    } else {
+                        scrollToElement();
+                    }
 
                     break;
                 }
@@ -560,6 +586,14 @@ const ViewportListInner = <T,>(
         viewportRef.current[propName.scrollTop] += offset;
     }, [startIndex]);
 
+    useEffect(
+        () => () => {
+            if (scrollToIndexTimeoutId.current) {
+                clearTimeout(scrollToIndexTimeoutId.current);
+            }
+        },
+        [],
+    );
     useImperativeHandle(
         ref,
         () => ({
