@@ -158,7 +158,7 @@ export interface ViewportListProps<T> {
     withCache?: boolean;
     scrollThreshold?: number;
     scrollToIndexDelay?: number;
-    renderSpacer: (props: { ref: MutableRefObject<any>; style: CSSProperties; type: 'top' | 'bottom' }) => any;
+    renderSpacer?: (props: { ref: MutableRefObject<any>; style: CSSProperties; type: 'top' | 'bottom' }) => any;
 }
 
 const getDiff = (value1: number, value2: number, step: number) => Math.ceil(Math.abs(value1 - value2) / step);
@@ -617,9 +617,11 @@ const ViewportListInner = <T,>(
     );
 };
 
-export const ViewportList = forwardRef(ViewportListInner) as <T>(
-    props: ViewportListProps<T> & { ref?: ForwardedRef<ViewportListRef> },
-) => ReturnType<typeof ViewportListInner>;
+export interface ViewportList {
+    <T>(props: ViewportListProps<T> & { ref?: ForwardedRef<ViewportListRef> }): ReturnType<typeof ViewportListInner>;
+}
+
+export const ViewportList = forwardRef(ViewportListInner) as ViewportList;
 
 // eslint-disable-next-line import/no-default-export
 export default ViewportList;
