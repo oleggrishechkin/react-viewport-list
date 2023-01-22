@@ -11,6 +11,7 @@ import {
     ForwardedRef,
     RefObject,
     CSSProperties,
+    useCallback,
 } from 'react';
 
 const IS_SSR = typeof window === 'undefined';
@@ -81,23 +82,28 @@ const normalizeValue = (min: number, value: number, max = Infinity) => Math.max(
 
 const useIsomorphicLayoutEffect = IS_SSR ? useEffect : useLayoutEffect;
 
-const useAnimationFrame = (func: () => void) => {
+const useMethod = <T extends any[], K>(func: (...args: T) => K): ((...args: T) => K) => {
     const ref = useRef(func);
 
     useIsomorphicLayoutEffect(() => {
         ref.current = func;
     }, [func]);
-    useIsomorphicLayoutEffect(() => {
+
+    return useCallback((...args) => ref.current(...args), []);
+};
+
+const useAnimationFrame = (func: () => void) => {
+    useEffect(() => {
         let frameId: number;
         const frame = () => {
             frameId = requestAnimationFrame(frame);
-            ref.current();
+            func();
         };
 
         frame();
 
         return () => cancelAnimationFrame(frameId);
-    }, []);
+    }, [func]);
 };
 
 const findElement = ({
@@ -254,7 +260,7 @@ const ViewportListInner = <T,>(
     );
     const scrollTopRef = useRef<number | null>(null);
 
-    useAnimationFrame(() => {
+    const updateIndexesIfNeeded = useMethod(() => {
         const viewport = viewportRef.current;
         const topSpacer = topSpacerRef.current;
         const bottomSpacer = bottomSpacerRef.current;
@@ -534,6 +540,37 @@ const ViewportListInner = <T,>(
 
         setIndexes([nextStartIndex, nextEndIndex]);
     });
+
+    useAnimationFrame(updateIndexesIfNeeded);
+    useEffect(() => {
+        const viewport = viewportRef.current;
+        const topSpacer = topSpacerRef.current;
+        const bottomSpacer = bottomSpacerRef.current;
+
+        if (!viewport || !topSpacer || !bottomSpacer || itemHeight === 0 || itemMargin === -1) {
+            return;
+        }
+
+        const intersectionRoot = viewport === document.documentElement ? undefined : viewport;
+        const observer = new IntersectionObserver(
+            (entry) => {
+                if (entry[0]?.isIntersecting || entry[1]?.isIntersecting) {
+                    updateIndexesIfNeeded();
+                }
+            },
+            {
+                root: intersectionRoot,
+                rootMargin: `${overscanSize}px`,
+                threshold: 0.0,
+            },
+        );
+
+        observer.observe(topSpacer);
+        observer.observe(bottomSpacer);
+
+        return () => observer.disconnect();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [itemHeight, itemMargin, startIndex, endIndex]);
 
     let anchorScrollTopOnRender: number | undefined;
     let anchorHeightOnRender: number | undefined;
