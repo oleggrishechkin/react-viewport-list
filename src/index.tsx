@@ -101,6 +101,39 @@ const useAnimationFrame = (func: () => void) => {
     }, []);
 };
 
+const findElement = ({
+    fromElement,
+    toElement,
+    fromIndex,
+    asc = true,
+    compare,
+}: {
+    fromElement: Element;
+    toElement: Element;
+    fromIndex: number;
+    asc?: boolean;
+    compare: (element: Element, index: number) => boolean;
+}) => {
+    let index = fromIndex;
+    let element: Element | null = fromElement;
+
+    while (element && element !== toElement) {
+        if (compare(element, index)) {
+            return [element, index] as const;
+        }
+
+        if (asc) {
+            index++;
+            element = element.nextSibling as Element | null;
+        } else {
+            index--;
+            element = element.previousSibling as Element | null;
+        }
+    }
+
+    return [null, -1] as const;
+};
+
 export interface ViewportListRef {
     scrollToIndex: (index?: number, alignToTop?: boolean, offset?: number) => void;
 }
@@ -282,43 +315,40 @@ const ViewportListInner = <T,>(
                 return;
             }
 
-            let index = startIndex;
-            let element: Element | null = topElement;
+            const [targetElement] = findElement({
+                fromElement: topSpacer.nextSibling as Element,
+                toElement: bottomSpacer,
+                fromIndex: startIndex,
+                compare: (_, index) => index === targetIndex,
+            });
 
-            while (element && element !== bottomSpacer) {
-                if (index === targetIndex) {
-                    const alignToTop = scrollToIndexRef.current.alignToTop;
-                    const offset = scrollToIndexRef.current.offset;
+            if (targetElement) {
+                const alignToTop = scrollToIndexRef.current.alignToTop;
+                const offset = scrollToIndexRef.current.offset;
 
-                    scrollToIndexRef.current = null;
+                scrollToIndexRef.current = null;
 
-                    const scrollToElement = () => {
-                        const elementRect = element!.getBoundingClientRect();
+                const scrollToElement = () => {
+                    const elementRect = targetElement.getBoundingClientRect();
 
-                        if (alignToTop) {
-                            viewport[propName.scrollTop] += elementRect[propName.top] - limits[propName.top] + offset;
-                        } else {
-                            viewport[propName.scrollTop] +=
-                                elementRect[propName.bottom] -
-                                limits[propName.top] -
-                                viewport[propName.clientHeight] +
-                                offset;
-                        }
-
-                        scrollToIndexTimeoutId.current = null;
-                    };
-
-                    if (SHOULD_DELAY_SCROLL) {
-                        scrollToIndexTimeoutId.current = setTimeout(scrollToElement, 30);
+                    if (alignToTop) {
+                        viewport[propName.scrollTop] += elementRect[propName.top] - limits[propName.top] + offset;
                     } else {
-                        scrollToElement();
+                        viewport[propName.scrollTop] +=
+                            elementRect[propName.bottom] -
+                            limits[propName.top] -
+                            viewport[propName.clientHeight] +
+                            offset;
                     }
 
-                    break;
-                }
+                    scrollToIndexTimeoutId.current = null;
+                };
 
-                index++;
-                element = element.nextSibling as Element | null;
+                if (SHOULD_DELAY_SCROLL) {
+                    scrollToIndexTimeoutId.current = setTimeout(scrollToElement, 30);
+                } else {
+                    scrollToElement();
+                }
             }
 
             return;
@@ -400,67 +430,56 @@ const ViewportListInner = <T,>(
         }
 
         if (isBottomSecondAboveTop) {
-            let index = endIndex;
-            let element: Element | null = bottomElement;
+            const [, index] = findElement({
+                fromElement: bottomElement,
+                toElement: topSpacer,
+                fromIndex: endIndex,
+                asc: false,
+                compare: (element) =>
+                    element.getBoundingClientRect()[propName.bottom] <= limitsWithOverscanSize[propName.bottom],
+            });
 
-            while (element && element !== topSpacer) {
-                if (element.getBoundingClientRect()[propName.bottom] <= limitsWithOverscanSize[propName.bottom]) {
-                    nextEndIndex = index + 1;
-
-                    break;
-                }
-
-                index--;
-                element = element.previousSibling as Element | null;
+            if (index !== -1) {
+                nextEndIndex = index + 1;
             }
         }
 
         if (isTopSecondAboveTop) {
-            let index = startIndex;
-            let element: Element | null = topElement;
+            const [, index] = findElement({
+                fromElement: topElement,
+                toElement: bottomSpacer,
+                fromIndex: startIndex,
+                compare: (element) =>
+                    element.getBoundingClientRect()[propName.top] >= limitsWithOverscanSize[propName.top],
+            });
 
-            while (element && element !== bottomSpacer) {
-                if (element.getBoundingClientRect()[propName.top] >= limitsWithOverscanSize[propName.top]) {
-                    nextStartIndex = index - 1;
-
-                    break;
-                }
-
-                index++;
-                element = element.nextSibling as Element | null;
+            if (index !== -1) {
+                nextStartIndex = index - 1;
             }
         }
 
         if (onViewportIndexesChange) {
-            let index = startIndex;
-            let element: Element | null = topElement;
-            let startViewportIndex = startIndex;
+            let [, startViewportIndex] = findElement({
+                fromElement: topElement,
+                toElement: bottomSpacer,
+                fromIndex: startIndex,
+                compare: (element) => element.getBoundingClientRect()[propName.bottom] > limits[propName.top],
+            });
 
-            while (element && element !== bottomSpacer) {
-                if (element.getBoundingClientRect()[propName.bottom] > limits[propName.top]) {
-                    startViewportIndex = index;
-
-                    break;
-                }
-
-                index++;
-                element = element.nextSibling as Element | null;
+            if (startViewportIndex === -1) {
+                startViewportIndex = startIndex;
             }
 
-            index = endIndex;
-            element = bottomElement;
+            let [, endViewportIndex] = findElement({
+                fromElement: bottomElement,
+                toElement: topSpacer,
+                fromIndex: endIndex,
+                asc: false,
+                compare: (element) => element.getBoundingClientRect()[propName.top] < limits[propName.bottom],
+            });
 
-            let endViewportIndex = endIndex;
-
-            while (element && element !== topSpacer) {
-                if (element.getBoundingClientRect()[propName.top] < limits[propName.bottom]) {
-                    endViewportIndex = index;
-
-                    break;
-                }
-
-                index--;
-                element = element.previousSibling as Element | null;
+            if (endViewportIndex === -1) {
+                endViewportIndex = endIndex;
             }
 
             if (
@@ -487,24 +506,22 @@ const ViewportListInner = <T,>(
                 anchorElement = topElement;
                 anchorElementIndex = startIndex;
             } else if (nextStartIndex >= startIndex && nextStartIndex <= endIndex) {
-                let index = startIndex;
-                let element: Element | null = topElement;
+                [anchorElement, anchorElementIndex] = findElement({
+                    fromElement: topElement,
+                    toElement: bottomSpacer,
+                    fromIndex: startIndex,
+                    compare: (element, index) => {
+                        if (index === nextStartIndex) {
+                            return true;
+                        }
 
-                while (element && element !== bottomSpacer) {
-                    if (index === nextStartIndex) {
-                        anchorElement = element;
-                        anchorElementIndex = index;
+                        if (withCache && element[propName.clientHeight] !== itemHeight) {
+                            cacheRef.current[index] = element[propName.clientHeight];
+                        }
 
-                        break;
-                    }
-
-                    if (withCache && element[propName.clientHeight] !== itemHeight) {
-                        cacheRef.current[index] = element[propName.clientHeight];
-                    }
-
-                    index++;
-                    element = element.nextSibling as Element | null;
-                }
+                        return false;
+                    },
+                });
             }
 
             anchorElementRef.current = anchorElement;
@@ -548,20 +565,12 @@ const ViewportListInner = <T,>(
             return;
         }
 
-        let anchorElement: Element | null = null;
-        let index = startIndex;
-        let element: Element | null = topSpacer.nextSibling as Element;
-
-        while (element && element !== bottomSpacer) {
-            if (index === anchorIndex) {
-                anchorElement = element;
-
-                break;
-            }
-
-            index++;
-            element = element.nextSibling as Element | null;
-        }
+        const [anchorElement] = findElement({
+            fromElement: topSpacer.nextSibling as Element,
+            toElement: bottomSpacer,
+            fromIndex: startIndex,
+            compare: (_, index) => index === anchorIndex,
+        });
 
         if (!anchorElement) {
             return;
