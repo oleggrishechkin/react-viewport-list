@@ -298,19 +298,7 @@ const ViewportListInner = <T,>(
             return;
         }
 
-        if (itemHeight === 0 || itemMargin === -1) {
-            if (topElement === bottomSpacer) {
-                return;
-            }
-
-            const nextItemHeight = itemHeight === 0 ? (topElement as Element)[propName.clientHeight] : itemHeight;
-            const nextItemMargin =
-                itemMargin === -1
-                    ? bottomSpacerRect[propName.top] - topSpacerRect[propName.bottom] - nextItemHeight
-                    : itemMargin;
-
-            setItemDimensions([nextItemHeight, nextItemMargin]);
-
+        if (itemHeight === 0 || itemMargin === -1 || itemsCount === 0) {
             return;
         }
 
@@ -611,6 +599,27 @@ const ViewportListInner = <T,>(
         viewportRef.current[propName.scrollTop] += offset;
     }, [startIndex]);
 
+    useEffect(() => {
+        if (
+            !topSpacerRef.current ||
+            !bottomSpacerRef.current ||
+            (itemHeight !== 0 && itemMargin !== -1) ||
+            itemsCount === 0
+        ) {
+            return;
+        }
+
+        const nextItemHeight =
+            itemHeight === 0 ? (topSpacerRef.current.nextSibling as Element)[propName.clientHeight] : itemHeight;
+        const nextItemMargin =
+            itemMargin === -1
+                ? bottomSpacerRef.current.getBoundingClientRect()[propName.top] -
+                  topSpacerRef.current.getBoundingClientRect()[propName.bottom] -
+                  nextItemHeight
+                : itemMargin;
+
+        setItemDimensions([nextItemHeight, nextItemMargin]);
+    }, [itemHeight, itemMargin, itemsCount, propName]);
     useEffect(
         () => () => {
             if (scrollToIndexTimeoutId.current) {
