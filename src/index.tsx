@@ -157,6 +157,7 @@ export interface ViewportListProps<T> {
     overflowAnchor?: 'none' | 'auto';
     withCache?: boolean;
     scrollThreshold?: number;
+    scrollToIndexDelay?: number;
     renderSpacer: (props: { ref: MutableRefObject<any>; style: CSSProperties; type: 'top' | 'bottom' }) => any;
 }
 
@@ -178,6 +179,7 @@ const ViewportListInner = <T,>(
         overflowAnchor = 'auto',
         withCache = true,
         scrollThreshold = 0,
+        scrollToIndexDelay = 30,
         renderSpacer = ({ ref, style }) => <div ref={ref} style={style} />,
     }: ViewportListProps<T>,
     ref: ForwardedRef<ViewportListRef>,
@@ -338,7 +340,7 @@ const ViewportListInner = <T,>(
                 };
 
                 if (SHOULD_DELAY_SCROLL) {
-                    scrollToIndexTimeoutId.current = setTimeout(scrollToElement, 30);
+                    scrollToIndexTimeoutId.current = setTimeout(scrollToElement, scrollToIndexDelay);
                 } else {
                     scrollToElement();
                 }
