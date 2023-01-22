@@ -133,16 +133,25 @@ const findElement = ({
     return [null, -1] as const;
 };
 
+const generateArray = <T,>(from: number, to: number, generate: (index: number) => T): T[] => {
+    const array = [];
+
+    for (let index = from; index < to; index++) {
+        array.push(generate(index));
+    }
+
+    return array;
+};
+
 export interface ViewportListRef {
     scrollToIndex: (index?: number, alignToTop?: boolean, offset?: number) => void;
 }
 
-export interface ViewportListProps<T> {
+export interface ViewportListPropsBase {
     viewportRef?:
         | MutableRefObject<HTMLElement | null>
         | RefObject<HTMLElement | null>
         | { current: HTMLElement | null };
-    items?: T[];
     // itemMinSize should be 0 or greater. It's estimated item size. Name saved for backward compatibility.
     itemMinSize?: number;
     // Margin should be -1 or greater
@@ -152,7 +161,6 @@ export interface ViewportListProps<T> {
     initialIndex?: number;
     initialAlignToTop?: boolean;
     initialOffset?: number;
-    children: (item: T, index: number, array: T[]) => any;
     onViewportIndexesChange?: (viewportIndexes: [number, number]) => void;
     overflowAnchor?: 'none' | 'auto';
     withCache?: boolean;
@@ -161,12 +169,23 @@ export interface ViewportListProps<T> {
     renderSpacer?: (props: { ref: MutableRefObject<any>; style: CSSProperties; type: 'top' | 'bottom' }) => any;
 }
 
+export interface ViewportListPropsWithItems<T> extends ViewportListPropsBase {
+    items?: T[];
+    children: (item: T, index: number, array: T[]) => any;
+}
+
+export interface ViewportListPropsWithCount extends ViewportListPropsBase {
+    count: number;
+    children: (index: number) => any;
+}
+
 const getDiff = (value1: number, value2: number, step: number) => Math.ceil(Math.abs(value1 - value2) / step);
 
 const ViewportListInner = <T,>(
     {
         viewportRef = { current: IS_SSR ? null : document.documentElement },
         items = [],
+        count,
         itemMinSize = 0,
         margin = -1,
         overscan = 1,
@@ -181,11 +200,13 @@ const ViewportListInner = <T,>(
         scrollThreshold = 0,
         scrollToIndexDelay = 30,
         renderSpacer = ({ ref, style }) => <div ref={ref} style={style} />,
-    }: ViewportListProps<T>,
+    }: ViewportListPropsBase & { items?: T[]; count?: number; children: (...args: any) => any },
     ref: ForwardedRef<ViewportListRef>,
 ) => {
     const propName = axis === 'y' ? PROP_NAME_FOR_Y_AXIS : PROP_NAME_FOR_X_AXIS;
-    const maxIndex = items.length - 1;
+    const withCount = typeof count === 'number';
+    const itemsCount = withCount ? count : items.length;
+    const maxIndex = itemsCount - 1;
     const [[itemHeight, itemMargin], setItemDimensions] = useState(() => [
         normalizeValue(0, itemMinSize),
         normalizeValue(-1, margin),
@@ -611,14 +632,21 @@ const ViewportListInner = <T,>(
     return (
         <Fragment>
             {renderSpacer({ ref: topSpacerRef, style: topSpacerStyle, type: 'top' })}
-            {items.slice(startIndex, endIndex + 1).map((item, index) => children(item, startIndex + index, items))}
+            {generateArray(
+                startIndex,
+                endIndex + 1,
+                withCount ? children : (index) => children(items[index], index, items),
+            )}
             {renderSpacer({ ref: bottomSpacerRef, style: bottomSpacerStyle, type: 'bottom' })}
         </Fragment>
     );
 };
 
 export interface ViewportList {
-    <T>(props: ViewportListProps<T> & { ref?: ForwardedRef<ViewportListRef> }): ReturnType<typeof ViewportListInner>;
+    <T>(props: ViewportListPropsWithItems<T> & { ref?: ForwardedRef<ViewportListRef> }): ReturnType<
+        typeof ViewportListInner
+    >;
+    (props: ViewportListPropsWithCount & { ref?: ForwardedRef<ViewportListRef> }): ReturnType<typeof ViewportListInner>;
 }
 
 export const ViewportList = forwardRef(ViewportListInner) as ViewportList;
