@@ -10,7 +10,6 @@ import {
     forwardRef,
     ForwardedRef,
     RefObject,
-    createElement,
     CSSProperties,
 } from 'react';
 
@@ -158,8 +157,7 @@ export interface ViewportListProps<T> {
     overflowAnchor?: 'none' | 'auto';
     withCache?: boolean;
     scrollThreshold?: number;
-    spacerElement?: keyof JSX.IntrinsicElements;
-    spacerStyle?: CSSProperties;
+    renderSpacer: (props: { ref: MutableRefObject<any>; style: CSSProperties; type: 'top' | 'bottom' }) => any;
 }
 
 const getDiff = (value1: number, value2: number, step: number) => Math.ceil(Math.abs(value1 - value2) / step);
@@ -180,8 +178,7 @@ const ViewportListInner = <T,>(
         overflowAnchor = 'auto',
         withCache = true,
         scrollThreshold = 0,
-        spacerElement = 'div',
-        spacerStyle = {},
+        renderSpacer = ({ ref, style }) => <div ref={ref} style={style} />,
     }: ViewportListProps<T>,
     ref: ForwardedRef<ViewportListRef>,
 ) => {
@@ -210,9 +207,8 @@ const ViewportListInner = <T,>(
     const anchorIndexRef = useRef<number>(-1);
     const scrollToIndexTimeoutId = useRef<any>(null);
     const topSpacerStyle = useMemo(
-        () => ({
-            ...spacerStyle,
-            ...getStyle(
+        () =>
+            getStyle(
                 propName,
                 // Array.prototype.reduce() runs only for initialized items.
                 cacheRef.current
@@ -220,21 +216,18 @@ const ViewportListInner = <T,>(
                     .reduce((sum, next) => sum + (next - itemHeight), startIndex * itemHeightWithMargin),
                 marginTopRef.current,
             ),
-        }),
-        [propName, startIndex, itemHeightWithMargin, itemHeight, spacerStyle],
+        [propName, startIndex, itemHeightWithMargin, itemHeight],
     );
     const bottomSpacerStyle = useMemo(
-        () => ({
-            ...spacerStyle,
-            ...getStyle(
+        () =>
+            getStyle(
                 propName,
                 // Array.prototype.reduce() runs only for initialized items.
                 cacheRef.current
                     .slice(endIndex + 1, maxIndex + 1)
                     .reduce((sum, next) => sum + (next - itemHeight), itemHeightWithMargin * (maxIndex - endIndex)),
             ),
-        }),
-        [propName, endIndex, maxIndex, itemHeightWithMargin, itemHeight, spacerStyle],
+        [propName, endIndex, maxIndex, itemHeightWithMargin, itemHeight],
     );
     const scrollTopRef = useRef<number | null>(null);
 
@@ -615,9 +608,9 @@ const ViewportListInner = <T,>(
 
     return (
         <Fragment>
-            {createElement(spacerElement, { ref: topSpacerRef, style: topSpacerStyle })}
+            {renderSpacer({ ref: topSpacerRef, style: topSpacerStyle, type: 'top' })}
             {items.slice(startIndex, endIndex + 1).map((item, index) => children(item, startIndex + index, items))}
-            {createElement(spacerElement, { ref: bottomSpacerRef, style: bottomSpacerStyle })}
+            {renderSpacer({ ref: bottomSpacerRef, style: bottomSpacerStyle, type: 'bottom' })}
         </Fragment>
     );
 };
