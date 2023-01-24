@@ -92,19 +92,30 @@ const useMethod = <T extends any[], K>(func: (...args: T) => K): ((...args: T) =
     return useCallback((...args) => ref.current(...args), []);
 };
 
-const useAnimationFrame = (func: () => void) => {
-    useEffect(() => {
-        let frameId: number;
-        const frame = () => {
-            frameId = requestAnimationFrame(frame);
-            func();
+const getLimits = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS, viewport: Element) => {
+    if (viewport === document.documentElement) {
+        return {
+            [propName.top]: 0,
+            [propName.bottom]: document.documentElement.clientHeight,
         };
+    }
 
-        frame();
+    const viewportRect = viewport.getBoundingClientRect();
 
-        return () => cancelAnimationFrame(frameId);
-    }, [func]);
+    return {
+        [propName.top]: viewportRect[propName.top],
+        [propName.bottom]: viewportRect[propName.bottom],
+    };
 };
+
+const getLimitsWithOverscanSize = (
+    propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS,
+    limits: Record<string, number>,
+    overscanSize: number,
+) => ({
+    [propName.top]: limits[propName.top] - overscanSize,
+    [propName.bottom]: limits[propName.bottom] + overscanSize,
+});
 
 const findElement = ({
     fromElement,
@@ -258,36 +269,21 @@ const ViewportListInner = <T,>(
             ),
         [propName, endIndex, maxIndex, itemHeightWithMargin, itemHeight],
     );
+    const isReady = itemHeight !== 0 && itemMargin !== -1;
     const scrollTopRef = useRef<number | null>(null);
-
-    const updateIndexesIfNeeded = useMethod(() => {
+    // reset ios margin compensation logic
+    const resetMarginCompensation = useMethod(() => {
         const viewport = viewportRef.current;
         const topSpacer = topSpacerRef.current;
         const bottomSpacer = bottomSpacerRef.current;
 
-        if (!viewport || !topSpacer || !bottomSpacer) {
+        if (!isReady || !viewport || !topSpacer || !bottomSpacer) {
             return;
         }
 
-        const topElement = topSpacer.nextSibling as Element;
-        const bottomElement = bottomSpacer.previousSibling as Element;
-        const topSecondElement = topElement === bottomSpacer ? bottomSpacer : (topElement.nextSibling as Element);
-        const bottomSecondElement =
-            bottomElement === topSpacer ? topSpacer : (bottomElement.previousSibling as Element);
-        const viewportRect = viewport.getBoundingClientRect();
         const topSpacerRect = topSpacer.getBoundingClientRect();
-        const bottomSpacerRect = bottomSpacer.getBoundingClientRect();
-        const limits = {
-            [propName.top]: viewport === document.documentElement ? 0 : viewportRect[propName.top],
-            [propName.bottom]:
-                viewport === document.documentElement
-                    ? document.documentElement.clientHeight
-                    : viewportRect[propName.bottom],
-        };
-        const limitsWithOverscanSize = {
-            [propName.top]: limits[propName.top] - overscanSize,
-            [propName.bottom]: limits[propName.bottom] + overscanSize,
-        };
+        const limits = getLimits(propName, viewport);
+        const limitsWithOverscanSize = getLimitsWithOverscanSize(propName, limits, overscanSize);
 
         if (
             (marginTopRef.current < 0 &&
@@ -300,69 +296,105 @@ const ViewportListInner = <T,>(
             viewport[propName.scrollTop] += -marginTopRef.current;
             viewport.style[propName.overflowY] = '';
             marginTopRef.current = 0;
+        }
+    });
+    // scroll to index logic
+    const scrollToIndex = useMethod(() => {
+        const viewport = viewportRef.current;
+        const topSpacer = topSpacerRef.current;
+        const bottomSpacer = bottomSpacerRef.current;
+
+        if (
+            !isReady ||
+            !viewport ||
+            !topSpacer ||
+            !bottomSpacer ||
+            scrollToIndexTimeoutId.current ||
+            !scrollToIndexRef.current
+        ) {
+            return;
+        }
+
+        const targetIndex = normalizeValue(0, scrollToIndexRef.current.index, maxIndex);
+
+        if (targetIndex < startIndex || targetIndex > endIndex) {
+            setIndexes([targetIndex, targetIndex]);
 
             return;
         }
 
-        if (itemHeight === 0 || itemMargin === -1 || itemsCount === 0) {
+        resetMarginCompensation();
+
+        const limits = getLimits(propName, viewport);
+        const [targetElement] = findElement({
+            fromElement: topSpacer.nextSibling as Element,
+            toElement: bottomSpacer,
+            fromIndex: startIndex,
+            compare: (_, index) => index === targetIndex,
+        });
+
+        if (!targetElement) {
             return;
         }
 
+        const alignToTop = scrollToIndexRef.current.alignToTop;
+        const offset = scrollToIndexRef.current.offset;
+
+        scrollToIndexRef.current = null;
+
+        const scrollToElement = () => {
+            const elementRect = targetElement.getBoundingClientRect();
+            const shift = alignToTop
+                ? elementRect[propName.top] - limits[propName.top] + offset
+                : elementRect[propName.bottom] - limits[propName.top] - viewport[propName.clientHeight] + offset;
+
+            viewport[propName.scrollTop] += shift;
+            scrollToIndexTimeoutId.current = null;
+        };
+
+        if (SHOULD_DELAY_SCROLL) {
+            scrollToIndexTimeoutId.current = setTimeout(scrollToElement, scrollToIndexDelay);
+
+            return;
+        }
+
+        scrollToElement();
+    });
+    // observation of intersections and scrolling
+    const mainFrame = useMethod(() => {
+        const viewport = viewportRef.current;
+        const topSpacer = topSpacerRef.current;
+        const bottomSpacer = bottomSpacerRef.current;
+
+        if (
+            !isReady ||
+            !viewport ||
+            !topSpacer ||
+            !bottomSpacer ||
+            scrollToIndexTimeoutId.current ||
+            scrollToIndexRef.current
+        ) {
+            return;
+        }
+
+        resetMarginCompensation();
+
+        if (itemsCount === 0) {
+            return;
+        }
+
+        const topElement = topSpacer.nextSibling as Element;
+        const bottomElement = bottomSpacer.previousSibling as Element;
+        const topSecondElement = topElement === bottomSpacer ? bottomSpacer : (topElement.nextSibling as Element);
+        const bottomSecondElement =
+            bottomElement === topSpacer ? topSpacer : (bottomElement.previousSibling as Element);
+        const topSpacerRect = topSpacer.getBoundingClientRect();
+        const bottomSpacerRect = bottomSpacer.getBoundingClientRect();
+        const limits = getLimits(propName, viewport);
+        const limitsWithOverscanSize = getLimitsWithOverscanSize(propName, limits, overscanSize);
         const averageSize = Math.ceil(
             (bottomSpacerRect[propName.top] - topSpacerRect[propName.bottom]) / (endIndex + 1 - startIndex),
         );
-
-        if (scrollToIndexTimeoutId.current) {
-            return;
-        }
-
-        if (scrollToIndexRef.current) {
-            const targetIndex = normalizeValue(0, scrollToIndexRef.current.index, maxIndex);
-
-            if (targetIndex < startIndex || targetIndex > endIndex) {
-                setIndexes([targetIndex, targetIndex]);
-
-                return;
-            }
-
-            const [targetElement] = findElement({
-                fromElement: topSpacer.nextSibling as Element,
-                toElement: bottomSpacer,
-                fromIndex: startIndex,
-                compare: (_, index) => index === targetIndex,
-            });
-
-            if (targetElement) {
-                const alignToTop = scrollToIndexRef.current.alignToTop;
-                const offset = scrollToIndexRef.current.offset;
-
-                scrollToIndexRef.current = null;
-
-                const scrollToElement = () => {
-                    const elementRect = targetElement.getBoundingClientRect();
-
-                    if (alignToTop) {
-                        viewport[propName.scrollTop] += elementRect[propName.top] - limits[propName.top] + offset;
-                    } else {
-                        viewport[propName.scrollTop] +=
-                            elementRect[propName.bottom] -
-                            limits[propName.top] -
-                            viewport[propName.clientHeight] +
-                            offset;
-                    }
-
-                    scrollToIndexTimeoutId.current = null;
-                };
-
-                if (SHOULD_DELAY_SCROLL) {
-                    scrollToIndexTimeoutId.current = setTimeout(scrollToElement, scrollToIndexDelay);
-                } else {
-                    scrollToElement();
-                }
-            }
-
-            return;
-        }
 
         if (scrollTopRef.current === null) {
             scrollTopRef.current = viewport.scrollTop;
@@ -541,13 +573,13 @@ const ViewportListInner = <T,>(
         setIndexes([nextStartIndex, nextEndIndex]);
     });
 
-    useAnimationFrame(updateIndexesIfNeeded);
+    /*
     useEffect(() => {
         const viewport = viewportRef.current;
         const topSpacer = topSpacerRef.current;
         const bottomSpacer = bottomSpacerRef.current;
 
-        if (!viewport || !topSpacer || !bottomSpacer || itemHeight === 0 || itemMargin === -1) {
+        if (!isReady || !viewport || !topSpacer || !bottomSpacer) {
             return;
         }
 
@@ -555,7 +587,7 @@ const ViewportListInner = <T,>(
         const observer = new IntersectionObserver(
             (entry) => {
                 if (entry[0]?.isIntersecting || entry[1]?.isIntersecting) {
-                    updateIndexesIfNeeded();
+                    mainFrame();
                 }
             },
             {
@@ -570,8 +602,10 @@ const ViewportListInner = <T,>(
 
         return () => observer.disconnect();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [itemHeight, itemMargin, startIndex, endIndex]);
+    }, [isReady, startIndex, endIndex]);
+    */
 
+    // compute layout data before dom mutations
     let anchorScrollTopOnRender: number | undefined;
     let anchorHeightOnRender: number | undefined;
 
@@ -582,6 +616,7 @@ const ViewportListInner = <T,>(
             topSpacerRef.current.getBoundingClientRect()[propName.top];
     }
 
+    // compensate scroll after dom mutations
     useIsomorphicLayoutEffect(() => {
         anchorElementRef.current = null;
 
@@ -633,30 +668,46 @@ const ViewportListInner = <T,>(
             return;
         }
 
-        viewportRef.current[propName.scrollTop] += offset;
+        viewport[propName.scrollTop] += offset;
     }, [startIndex]);
+    // try to scroll on every render
+    useIsomorphicLayoutEffect(() => {
+        scrollToIndex();
+    }, [startIndex, scrollToIndex, isReady]);
+    // compute item height and margin
+    useIsomorphicLayoutEffect(() => {
+        const viewport = viewportRef.current;
+        const topSpacer = topSpacerRef.current;
+        const bottomSpacer = bottomSpacerRef.current;
 
-    useEffect(() => {
-        if (
-            !topSpacerRef.current ||
-            !bottomSpacerRef.current ||
-            (itemHeight !== 0 && itemMargin !== -1) ||
-            itemsCount === 0
-        ) {
+        if (isReady || !viewport || !topSpacer || !bottomSpacer || itemsCount === 0) {
             return;
         }
 
         const nextItemHeight =
-            itemHeight === 0 ? (topSpacerRef.current.nextSibling as Element)[propName.clientHeight] : itemHeight;
+            itemHeight === 0 ? (topSpacer.nextSibling as Element)[propName.clientHeight] : itemHeight;
         const nextItemMargin =
             itemMargin === -1
-                ? bottomSpacerRef.current.getBoundingClientRect()[propName.top] -
-                  topSpacerRef.current.getBoundingClientRect()[propName.bottom] -
+                ? bottomSpacer.getBoundingClientRect()[propName.top] -
+                  topSpacer.getBoundingClientRect()[propName.bottom] -
                   nextItemHeight
                 : itemMargin;
 
         setItemDimensions([nextItemHeight, nextItemMargin]);
-    }, [itemHeight, itemMargin, itemsCount, propName]);
+    }, [itemsCount, propName, isReady]);
+    // start main frame
+    useIsomorphicLayoutEffect(() => {
+        let frameId: number;
+        const frame = () => {
+            frameId = requestAnimationFrame(frame);
+            mainFrame();
+        };
+
+        frame();
+
+        return () => cancelAnimationFrame(frameId);
+    }, [mainFrame]);
+    // cleanup all timeouts
     useEffect(
         () => () => {
             if (scrollToIndexTimeoutId.current) {
@@ -665,14 +716,16 @@ const ViewportListInner = <T,>(
         },
         [],
     );
+    // add scrollToIndex method to forwardedRef
     useImperativeHandle(
         ref,
         () => ({
             scrollToIndex: (index = -1, alignToTop = true, offset = 0) => {
                 scrollToIndexRef.current = { index, alignToTop, offset };
+                scrollToIndex();
             },
         }),
-        [],
+        [scrollToIndex],
     );
 
     return (
