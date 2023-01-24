@@ -595,38 +595,6 @@ const ViewportListInner = <T,>(
         setIndexes([nextStartIndex, nextEndIndex]);
     });
 
-    /*
-    useEffect(() => {
-        const viewport = viewportRef.current;
-        const topSpacer = topSpacerRef.current;
-        const bottomSpacer = bottomSpacerRef.current;
-
-        if (!isReady || !viewport || !topSpacer || !bottomSpacer) {
-            return;
-        }
-
-        const intersectionRoot = viewport === document.documentElement ? undefined : viewport;
-        const observer = new IntersectionObserver(
-            (entry) => {
-                if (entry[0]?.isIntersecting || entry[1]?.isIntersecting) {
-                    mainFrame();
-                }
-            },
-            {
-                root: intersectionRoot,
-                rootMargin: `${overscanSize}px`,
-                threshold: 0.0,
-            },
-        );
-
-        observer.observe(topSpacer);
-        observer.observe(bottomSpacer);
-
-        return () => observer.disconnect();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isReady, startIndex, endIndex]);
-    */
-
     // compute layout data before dom mutations
     let anchorScrollTopOnRender: number | undefined;
     let anchorHeightOnRender: number | undefined;
