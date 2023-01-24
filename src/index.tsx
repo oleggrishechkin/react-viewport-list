@@ -160,6 +160,30 @@ const generateArray = <T,>(from: number, to: number, generate: (index: number) =
     return array;
 };
 
+const getDiff = (value1: number, value2: number, step: number) => Math.ceil(Math.abs(value1 - value2) / step);
+
+/*
+const getScrollParent = (node: Element | null): Element | null => {
+    if (!node || node === document.body || node === document.documentElement) {
+        return document.documentElement;
+    }
+
+    if (node.scrollTop > 0 || node.scrollHeight - node.clientHeight > 1) {
+        console.log('overflow', node);
+
+        return node;
+    }
+
+    const style = window.getComputedStyle(node);
+
+    if (style.overflowY && (style.overflowY.includes('auto') || style.overflowY.includes('scroll'))) {
+        return node;
+    }
+
+    return getScrollParent(node.parentNode as Element | null);
+};
+*/
+
 export interface ViewportListRef {
     scrollToIndex: (index?: number, alignToTop?: boolean, offset?: number) => void;
 }
@@ -195,8 +219,6 @@ export interface ViewportListPropsWithCount extends ViewportListPropsBase {
     count: number;
     children: (index: number) => any;
 }
-
-const getDiff = (value1: number, value2: number, step: number) => Math.ceil(Math.abs(value1 - value2) / step);
 
 const ViewportListInner = <T,>(
     {
