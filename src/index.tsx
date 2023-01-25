@@ -213,6 +213,7 @@ export interface ViewportListPropsBase {
     withCache?: boolean;
     scrollThreshold?: number;
     renderSpacer?: (props: { ref: MutableRefObject<any>; style: CSSProperties; type: 'top' | 'bottom' }) => any;
+    prerenderItems?: number;
 }
 
 export interface ViewportListPropsWithItems<T> extends ViewportListPropsBase {
@@ -244,6 +245,7 @@ const ViewportListInner = <T,>(
         withCache = true,
         scrollThreshold = 0,
         renderSpacer = ({ ref, style }) => <div ref={ref} style={style} />,
+        prerenderItems = 0,
     }: ViewportListPropsBase & { items?: T[]; count?: number; children: (...args: any) => any },
     ref: ForwardedRef<ViewportListRef>,
 ) => {
@@ -257,7 +259,7 @@ const ViewportListInner = <T,>(
     ]);
     const itemHeightWithMargin = normalizeValue(0, itemHeight + itemMargin);
     const overscanSize = normalizeValue(0, Math.ceil(overscan * itemHeightWithMargin));
-    const [indexes, setIndexes] = useState([initialIndex, initialIndex]);
+    const [indexes, setIndexes] = useState([initialIndex - prerenderItems, initialIndex + prerenderItems]);
     const startIndex = (indexes[0] = normalizeValue(0, indexes[0], maxIndex));
     const endIndex = (indexes[1] = normalizeValue(startIndex, indexes[1], maxIndex));
     const topSpacerRef = useRef<any>(null);
@@ -377,7 +379,7 @@ const ViewportListInner = <T,>(
         const targetIndex = normalizeValue(0, scrollToIndexRef.current.index, maxIndex);
 
         if (targetIndex < startIndex || targetIndex > endIndex) {
-            setIndexes([targetIndex, targetIndex]);
+            setIndexes([targetIndex - prerenderItems, targetIndex + prerenderItems]);
 
             return;
         }
@@ -713,13 +715,28 @@ const ViewportListInner = <T,>(
             return;
         }
 
-        const nextItemHeight =
-            itemHeight === 0 ? (topSpacer.nextSibling as Element)[propName.clientHeight] : itemHeight;
+        let itemsHeightSum = 0;
+
+        findElement({
+            fromElement: topSpacer.nextSibling as Element,
+            toElement: bottomSpacer,
+            fromIndex: 0,
+            compare: (element) => {
+                itemsHeightSum += element[propName.clientHeight];
+
+                return false;
+            },
+        });
+
+        const nextItemHeight = itemHeight === 0 ? Math.ceil(itemsHeightSum / itemsCount) : itemHeight;
         const nextItemMargin =
             itemMargin === -1
-                ? bottomSpacer.getBoundingClientRect()[propName.top] -
-                  topSpacer.getBoundingClientRect()[propName.bottom] -
-                  nextItemHeight
+                ? Math.ceil(
+                      (bottomSpacer.getBoundingClientRect()[propName.top] -
+                          topSpacer.getBoundingClientRect()[propName.bottom] -
+                          itemsHeightSum) /
+                          itemsCount,
+                  )
                 : itemMargin;
 
         setItemDimensions([nextItemHeight, nextItemMargin]);
