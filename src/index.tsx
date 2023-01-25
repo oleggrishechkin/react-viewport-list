@@ -185,7 +185,7 @@ const getScrollParent = (node: Element | null): Element | null => {
 */
 
 export interface ViewportListRef {
-    scrollToIndex: (index?: number, alignToTop?: boolean, offset?: number) => void;
+    scrollToIndex: (index?: number, alignToTop?: boolean, offset?: number, delay?: number) => void;
 }
 
 export interface ViewportListPropsBase {
@@ -202,11 +202,11 @@ export interface ViewportListPropsBase {
     initialIndex?: number;
     initialAlignToTop?: boolean;
     initialOffset?: number;
+    initialDelay?: number;
     onViewportIndexesChange?: (viewportIndexes: [number, number]) => void;
     overflowAnchor?: 'none' | 'auto';
     withCache?: boolean;
     scrollThreshold?: number;
-    scrollToIndexDelay?: number;
     renderSpacer?: (props: { ref: MutableRefObject<any>; style: CSSProperties; type: 'top' | 'bottom' }) => any;
 }
 
@@ -232,12 +232,12 @@ const ViewportListInner = <T,>(
         initialIndex = -1,
         initialAlignToTop = true,
         initialOffset = 0,
+        initialDelay = -1,
         children,
         onViewportIndexesChange,
         overflowAnchor = 'auto',
         withCache = true,
         scrollThreshold = 0,
-        scrollToIndexDelay = 30,
         renderSpacer = ({ ref, style }) => <div ref={ref} style={style} />,
     }: ViewportListPropsBase & { items?: T[]; count?: number; children: (...args: any) => any },
     ref: ForwardedRef<ViewportListRef>,
@@ -262,7 +262,12 @@ const ViewportListInner = <T,>(
         index: number;
         alignToTop: boolean | ScrollIntoViewOptions;
         offset: number;
-    } | null>(initialIndex >= 0 ? { index: initialIndex, alignToTop: initialAlignToTop, offset: initialOffset } : null);
+        delay: number;
+    } | null>(
+        initialIndex >= 0
+            ? { index: initialIndex, alignToTop: initialAlignToTop, offset: initialOffset, delay: initialDelay }
+            : null,
+    );
     const marginTopRef = useRef(0);
     const viewportIndexesRef = useRef<[number, number]>([-1, -1]);
     const anchorElementRef = useRef<Element | null>(null);
@@ -361,6 +366,7 @@ const ViewportListInner = <T,>(
 
         const alignToTop = scrollToIndexRef.current.alignToTop;
         const offset = scrollToIndexRef.current.offset;
+        const delay = scrollToIndexRef.current.delay;
 
         scrollToIndexRef.current = null;
 
@@ -373,9 +379,10 @@ const ViewportListInner = <T,>(
             viewport[propName.scrollTop] += shift;
             scrollToIndexTimeoutId.current = null;
         };
+        const scrollToElementDelay = delay < 0 && SHOULD_DELAY_SCROLL ? 30 : delay;
 
-        if (SHOULD_DELAY_SCROLL) {
-            scrollToIndexTimeoutId.current = setTimeout(scrollToElement, scrollToIndexDelay);
+        if (scrollToElementDelay > 0) {
+            scrollToIndexTimeoutId.current = setTimeout(scrollToElement, scrollToElementDelay);
 
             return;
         }
@@ -710,8 +717,8 @@ const ViewportListInner = <T,>(
     useImperativeHandle(
         ref,
         () => ({
-            scrollToIndex: (index = -1, alignToTop = true, offset = 0) => {
-                scrollToIndexRef.current = { index, alignToTop, offset };
+            scrollToIndex: (index = -1, alignToTop = true, offset = 0, delay = -1) => {
+                scrollToIndexRef.current = { index, alignToTop, offset, delay };
                 scrollToIndex();
             },
         }),
