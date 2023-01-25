@@ -162,13 +162,15 @@ const generateArray = <T,>(from: number, to: number, generate: (index: number) =
 
 const getDiff = (value1: number, value2: number, step: number) => Math.ceil(Math.abs(value1 - value2) / step);
 
-/*
-const getScrollParent = (node: Element | null): Element | null => {
+const findNearestScrollableElement = (
+    propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS,
+    node: Element | null,
+): Element | null => {
     if (!node || node === document.body || node === document.documentElement) {
         return document.documentElement;
     }
 
-    if (node.scrollTop > 0 || node.scrollHeight - node.clientHeight > 1) {
+    if (node[propName.scrollTop] > 0 || node[propName.scrollHeight] - node[propName.clientHeight] > 1) {
         console.log('overflow', node);
 
         return node;
@@ -176,13 +178,16 @@ const getScrollParent = (node: Element | null): Element | null => {
 
     const style = window.getComputedStyle(node);
 
-    if (style.overflowY && (style.overflowY.includes('auto') || style.overflowY.includes('scroll'))) {
+    if (
+        (style[propName.overflowY] &&
+            (style[propName.overflowY].includes('auto') || style[propName.overflowY].includes('scroll'))) ||
+        (style.overflow && (style.overflow.includes('auto') || style.overflow.includes('scroll')))
+    ) {
         return node;
     }
 
-    return getScrollParent(node.parentNode as Element | null);
+    return findNearestScrollableElement(propName, node.parentNode as Element | null);
 };
-*/
 
 export interface ViewportListRef {
     scrollToIndex: (index?: number, alignToTop?: boolean, offset?: number, delay?: number) => void;
@@ -222,7 +227,7 @@ export interface ViewportListPropsWithCount extends ViewportListPropsBase {
 
 const ViewportListInner = <T,>(
     {
-        viewportRef = { current: IS_SSR ? null : document.documentElement },
+        viewportRef,
         items = [],
         count,
         itemMinSize = 0,
@@ -298,9 +303,36 @@ const ViewportListInner = <T,>(
     );
     const isReady = itemHeight !== 0 && itemMargin !== -1;
     const scrollTopRef = useRef<number | null>(null);
+    const getViewport = useMemo(() => {
+        let autoViewport: any = null;
+
+        return () => {
+            if (viewportRef) {
+                if (viewportRef.current === document.body) {
+                    return document.documentElement;
+                }
+
+                return viewportRef.current;
+            }
+
+            if (autoViewport && autoViewport.isConnected) {
+                return autoViewport;
+            }
+
+            const topSpacer = topSpacerRef.current;
+
+            if (!topSpacer) {
+                return null;
+            }
+
+            autoViewport = findNearestScrollableElement(propName, topSpacer.parentNode);
+
+            return autoViewport;
+        };
+    }, [propName, viewportRef]);
     // reset ios margin compensation logic
     const resetMarginCompensation = useMethod(() => {
-        const viewport = viewportRef.current;
+        const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
         const bottomSpacer = bottomSpacerRef.current;
 
@@ -327,7 +359,7 @@ const ViewportListInner = <T,>(
     });
     // scroll to index logic
     const scrollToIndex = useMethod(() => {
-        const viewport = viewportRef.current;
+        const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
         const bottomSpacer = bottomSpacerRef.current;
 
@@ -391,7 +423,7 @@ const ViewportListInner = <T,>(
     });
     // observation of intersections and scrolling
     const mainFrame = useMethod(() => {
-        const viewport = viewportRef.current;
+        const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
         const bottomSpacer = bottomSpacerRef.current;
 
@@ -606,8 +638,8 @@ const ViewportListInner = <T,>(
     let anchorScrollTopOnRender: number | undefined;
     let anchorHeightOnRender: number | undefined;
 
-    if (anchorElementRef.current && viewportRef.current && topSpacerRef.current) {
-        anchorScrollTopOnRender = viewportRef.current[propName.scrollTop];
+    if (anchorElementRef.current && getViewport() && topSpacerRef.current) {
+        anchorScrollTopOnRender = getViewport()[propName.scrollTop];
         anchorHeightOnRender =
             anchorElementRef.current.getBoundingClientRect()[propName.top] -
             topSpacerRef.current.getBoundingClientRect()[propName.top];
@@ -621,7 +653,7 @@ const ViewportListInner = <T,>(
 
         anchorIndexRef.current = -1;
 
-        const viewport = viewportRef.current;
+        const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
         const bottomSpacer = bottomSpacerRef.current;
 
@@ -633,7 +665,7 @@ const ViewportListInner = <T,>(
             !bottomSpacer ||
             anchorScrollTopOnRender === undefined ||
             anchorHeightOnRender === undefined ||
-            anchorScrollTopOnRender !== viewportRef.current[propName.scrollTop]
+            anchorScrollTopOnRender !== viewport[propName.scrollTop]
         ) {
             return;
         }
@@ -673,7 +705,7 @@ const ViewportListInner = <T,>(
     }, [startIndex, scrollToIndex, isReady]);
     // compute item height and margin
     useIsomorphicLayoutEffect(() => {
-        const viewport = viewportRef.current;
+        const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
         const bottomSpacer = bottomSpacerRef.current;
 
