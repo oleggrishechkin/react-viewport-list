@@ -198,10 +198,10 @@ export interface ViewportListPropsBase {
         | MutableRefObject<HTMLElement | null>
         | RefObject<HTMLElement | null>
         | { current: HTMLElement | null };
-    // itemMinSize should be 0 or greater. It's estimated item size. Name saved for backward compatibility.
-    itemMinSize?: number;
-    // Margin should be -1 or greater
-    margin?: number;
+    // itemSize should be 0 or greater. It's estimated item size. Name saved for backward compatibility.
+    itemSize?: number;
+    // itemMargin should be -1 or greater
+    itemMargin?: number;
     overscan?: number;
     axis?: 'y' | 'x';
     initialIndex?: number;
@@ -231,8 +231,8 @@ const ViewportListInner = <T,>(
         viewportRef,
         items = [],
         count,
-        itemMinSize = 0,
-        margin = -1,
+        itemSize = 0,
+        itemMargin = -1,
         overscan = 1,
         axis = 'y',
         initialIndex = -1,
@@ -253,11 +253,11 @@ const ViewportListInner = <T,>(
     const withCount = typeof count === 'number';
     const itemsCount = withCount ? count : items.length;
     const maxIndex = itemsCount - 1;
-    const [[itemHeight, itemMargin], setItemDimensions] = useState(() => [
-        normalizeValue(0, itemMinSize),
-        normalizeValue(-1, margin),
+    const [[estimatedItemHeight, estimatedItemMargin], setItemDimensions] = useState(() => [
+        normalizeValue(0, itemSize),
+        normalizeValue(-1, itemMargin),
     ]);
-    const itemHeightWithMargin = normalizeValue(0, itemHeight + itemMargin);
+    const itemHeightWithMargin = normalizeValue(0, estimatedItemHeight + estimatedItemMargin);
     const overscanSize = normalizeValue(0, Math.ceil(overscan * itemHeightWithMargin));
     const [indexes, setIndexes] = useState([initialIndex - prerenderItems, initialIndex + prerenderItems]);
     const startIndex = (indexes[0] = normalizeValue(0, indexes[0], maxIndex));
@@ -287,10 +287,10 @@ const ViewportListInner = <T,>(
                 // Array.prototype.reduce() runs only for initialized items.
                 cacheRef.current
                     .slice(0, startIndex)
-                    .reduce((sum, next) => sum + (next - itemHeight), startIndex * itemHeightWithMargin),
+                    .reduce((sum, next) => sum + (next - estimatedItemHeight), startIndex * itemHeightWithMargin),
                 marginTopRef.current,
             ),
-        [propName, startIndex, itemHeightWithMargin, itemHeight],
+        [propName, startIndex, itemHeightWithMargin, estimatedItemHeight],
     );
     const bottomSpacerStyle = useMemo(
         () =>
@@ -299,11 +299,14 @@ const ViewportListInner = <T,>(
                 // Array.prototype.reduce() runs only for initialized items.
                 cacheRef.current
                     .slice(endIndex + 1, maxIndex + 1)
-                    .reduce((sum, next) => sum + (next - itemHeight), itemHeightWithMargin * (maxIndex - endIndex)),
+                    .reduce(
+                        (sum, next) => sum + (next - estimatedItemHeight),
+                        itemHeightWithMargin * (maxIndex - endIndex),
+                    ),
             ),
-        [propName, endIndex, maxIndex, itemHeightWithMargin, itemHeight],
+        [propName, endIndex, maxIndex, itemHeightWithMargin, estimatedItemHeight],
     );
-    const isReady = itemHeight !== 0 && itemMargin !== -1;
+    const isReady = estimatedItemHeight !== 0 && estimatedItemMargin !== -1;
     const scrollTopRef = useRef<number | null>(null);
     const getViewport = useMemo(() => {
         let autoViewport: any = null;
@@ -620,7 +623,7 @@ const ViewportListInner = <T,>(
                             return true;
                         }
 
-                        if (withCache && element[propName.clientHeight] !== itemHeight) {
+                        if (withCache && element[propName.clientHeight] !== estimatedItemHeight) {
                             cacheRef.current[index] = element[propName.clientHeight];
                         }
 
@@ -728,16 +731,16 @@ const ViewportListInner = <T,>(
             },
         });
 
-        const nextItemHeight = itemHeight === 0 ? Math.ceil(itemsHeightSum / itemsCount) : itemHeight;
+        const nextItemHeight = estimatedItemHeight === 0 ? Math.ceil(itemsHeightSum / itemsCount) : estimatedItemHeight;
         const nextItemMargin =
-            itemMargin === -1
+            estimatedItemMargin === -1
                 ? Math.ceil(
                       (bottomSpacer.getBoundingClientRect()[propName.top] -
                           topSpacer.getBoundingClientRect()[propName.bottom] -
                           itemsHeightSum) /
                           itemsCount,
                   )
-                : itemMargin;
+                : estimatedItemMargin;
 
         setItemDimensions([nextItemHeight, nextItemMargin]);
     }, [itemsCount, propName, isReady]);
