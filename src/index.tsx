@@ -672,7 +672,7 @@ const ViewportListInner = <T,>(
         }
 
         viewport[propName.scrollTop] += offset;
-    }, [startIndex]);
+    });
     useIsomorphicLayoutEffect(() => {
         const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
@@ -717,7 +717,7 @@ const ViewportListInner = <T,>(
     });
     useIsomorphicLayoutEffect(() => {
         performScrollRef.current();
-    }, [startIndex, endIndex, estimatedItemHeight, estimatedItemMargin]);
+    });
     useIsomorphicLayoutEffect(() => {
         let frameId: number;
         const frame = () => {
@@ -729,12 +729,16 @@ const ViewportListInner = <T,>(
 
         return () => {
             cancelAnimationFrame(frameId);
-
+        };
+    }, []);
+    useEffect(
+        () => () => {
             if (scrollToIndexTimeoutId.current) {
                 clearTimeout(scrollToIndexTimeoutId.current);
             }
-        };
-    }, []);
+        },
+        [],
+    );
     useImperativeHandle(
         ref,
         () => ({
