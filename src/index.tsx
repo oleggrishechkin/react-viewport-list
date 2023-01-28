@@ -15,27 +15,27 @@ import {
 
 const IS_SSR = typeof window === 'undefined';
 
-const IS_TOUCH_DEVICE = IS_SSR
-    ? false
-    : (() => {
-          try {
-              return 'ontouchstart' in window || navigator.maxTouchPoints;
-          } catch (error) {
-              return false;
-          }
-      })();
+const IS_TOUCH_DEVICE =
+    !IS_SSR &&
+    (() => {
+        try {
+            return 'ontouchstart' in window || navigator.maxTouchPoints;
+        } catch {
+            return false;
+        }
+    })();
 
-const IS_OVERFLOW_ANCHOR_SUPPORTED = IS_SSR
-    ? false
-    : (() => {
-          try {
-              return window.CSS.supports('overflow-anchor: auto');
-          } catch (error) {
-              return false;
-          }
-      })();
+const IS_OVERFLOW_ANCHOR_SUPPORTED =
+    !IS_SSR &&
+    (() => {
+        try {
+            return window.CSS.supports('overflow-anchor: auto');
+        } catch {
+            return false;
+        }
+    })();
 
-const SHOULD_DELAY_SCROLL = IS_TOUCH_DEVICE && !IS_OVERFLOW_ANCHOR_SUPPORTED; // mobile Safari
+const SHOULD_DELAY_SCROLL = IS_TOUCH_DEVICE && !IS_OVERFLOW_ANCHOR_SUPPORTED;
 
 const PROP_NAME_FOR_Y_AXIS = {
     top: 'top',
@@ -166,7 +166,6 @@ const getStyle = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X
         margin: 0,
         border: 'none',
         visibility: 'hidden',
-        // We need to off 'overflow-anchor' for spacers. Otherwise, it may cause unnecessary scroll jumps.
         overflowAnchor: 'none',
         [propName.minHeight]: size,
         [propName.height]: size,
@@ -183,9 +182,7 @@ export interface ViewportListPropsBase {
         | MutableRefObject<HTMLElement | null>
         | RefObject<HTMLElement | null>
         | { current: HTMLElement | null };
-    // itemSize should be 0 or greater. It's estimated item size. Name saved for backward compatibility.
     itemSize?: number;
-    // itemMargin should be -1 or greater
     itemMargin?: number;
     overscan?: number;
     axis?: 'y' | 'x';
@@ -268,7 +265,6 @@ const ViewportListInner = <T,>(
         () =>
             getStyle(
                 propName,
-                // Array.prototype.reduce() runs only for initialized items.
                 cacheRef.current
                     .slice(0, startIndex)
                     .reduce((sum, next) => sum + (next - estimatedItemHeight), startIndex * itemHeightWithMargin),
@@ -280,7 +276,6 @@ const ViewportListInner = <T,>(
         () =>
             getStyle(
                 propName,
-                // Array.prototype.reduce() runs only for initialized items.
                 cacheRef.current
                     .slice(endIndex + 1, maxIndex + 1)
                     .reduce(
@@ -326,11 +321,19 @@ const ViewportListInner = <T,>(
     let anchorScrollTopOnRender: number | undefined;
     let anchorHeightOnRender: number | undefined;
 
-    if (anchorElementRef.current && getViewport() && topSpacerRef.current) {
-        anchorScrollTopOnRender = getViewport()[propName.scrollTop];
-        anchorHeightOnRender =
-            anchorElementRef.current.getBoundingClientRect()[propName.top] -
-            topSpacerRef.current.getBoundingClientRect()[propName.top];
+    if (anchorElementRef.current) {
+        const anchorElement = anchorElementRef.current;
+
+        anchorElementRef.current = null;
+
+        const viewport = getViewport();
+        const topSpacer = topSpacerRef.current;
+
+        if (viewport && topSpacer) {
+            anchorScrollTopOnRender = viewport[propName.scrollTop];
+            anchorHeightOnRender =
+                anchorElement.getBoundingClientRect()[propName.top] - topSpacer.getBoundingClientRect()[propName.top];
+        }
     }
 
     useIsomorphicLayoutEffect(() => {
@@ -398,9 +401,7 @@ const ViewportListInner = <T,>(
                 return;
             }
 
-            const alignToTop = scrollToIndexRef.current.alignToTop;
-            const offset = scrollToIndexRef.current.offset;
-            const delay = scrollToIndexRef.current.delay;
+            const { alignToTop, offset, delay } = scrollToIndexRef.current;
 
             scrollToIndexRef.current = null;
 
@@ -632,6 +633,10 @@ const ViewportListInner = <T,>(
             setIndexes([nextStartIndex, nextEndIndex]);
         };
 
+        const anchorIndex = anchorIndexRef.current;
+
+        anchorIndexRef.current = -1;
+
         const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
         const bottomSpacer = bottomSpacerRef.current;
@@ -640,11 +645,13 @@ const ViewportListInner = <T,>(
             return;
         }
 
+        const topElement = topSpacer.nextSibling as Element;
+
         if (!isReady) {
             let itemsHeightSum = 0;
 
             findElement({
-                fromElement: topSpacer.nextSibling as Element,
+                fromElement: topElement,
                 toElement: bottomSpacer,
                 fromIndex: startIndex,
                 compare: (element) => {
@@ -676,12 +683,6 @@ const ViewportListInner = <T,>(
             return;
         }
 
-        anchorElementRef.current = null;
-
-        const anchorIndex = anchorIndexRef.current;
-
-        anchorIndexRef.current = -1;
-
         if (
             (!IS_OVERFLOW_ANCHOR_SUPPORTED || overflowAnchor === 'none') &&
             anchorIndex !== -1 &&
@@ -690,7 +691,7 @@ const ViewportListInner = <T,>(
             anchorScrollTopOnRender === viewport[propName.scrollTop]
         ) {
             const [anchorElement] = findElement({
-                fromElement: topSpacer.nextSibling as Element,
+                fromElement: topElement,
                 toElement: bottomSpacer,
                 fromIndex: startIndex,
                 compare: (_, index) => index === anchorIndex,
@@ -705,7 +706,7 @@ const ViewportListInner = <T,>(
                 if (offset) {
                     if (IS_TOUCH_DEVICE) {
                         marginTopRef.current -= offset;
-                        topSpacerRef.current.style[propName.marginTop] = `${marginTopRef.current}px`;
+                        topSpacer.style[propName.marginTop] = `${marginTopRef.current}px`;
                     } else {
                         viewport[propName.scrollTop] += offset;
                     }
@@ -715,7 +716,6 @@ const ViewportListInner = <T,>(
 
         performScrollToIndexRef.current();
     });
-    // cleanup all timeouts
     useEffect(() => {
         let frameId: number;
         const frame = () => {
@@ -733,7 +733,6 @@ const ViewportListInner = <T,>(
             }
         };
     }, []);
-    // add scrollToIndex method to forwardedRef
     useImperativeHandle(
         ref,
         () => ({
@@ -766,6 +765,3 @@ export interface ViewportList {
 }
 
 export const ViewportList = forwardRef(ViewportListInner) as ViewportList;
-
-// eslint-disable-next-line import/no-default-export
-export default ViewportList;
