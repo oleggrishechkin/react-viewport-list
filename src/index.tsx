@@ -172,7 +172,7 @@ const getStyle = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X
     } as const);
 
 export interface ViewportListRef {
-    scrollToIndex: (index?: number, alignToTop?: boolean, offset?: number, delay?: number) => void;
+    scrollToIndex: (options: { index?: number; alignToTop?: boolean; offset?: number; delay?: number }) => void;
 }
 
 export interface ViewportListPropsBase {
@@ -244,7 +244,7 @@ const ViewportListInner = <T,>(
     const topSpacerRef = useRef<any>(null);
     const bottomSpacerRef = useRef<any>(null);
     const cacheRef = useRef<number[]>([]);
-    const scrollToIndexRef = useRef<{
+    const scrollToIndexOptionsRef = useRef<{
         index: number;
         alignToTop: boolean | ScrollIntoViewOptions;
         offset: number;
@@ -254,11 +254,11 @@ const ViewportListInner = <T,>(
             ? { index: initialIndex, alignToTop: initialAlignToTop, offset: initialOffset, delay: initialDelay }
             : null,
     );
+    const scrollToIndexTimeoutId = useRef<any>(null);
     const marginTopRef = useRef(0);
     const viewportIndexesRef = useRef<[number, number]>([-1, -1]);
     const anchorElementRef = useRef<Element | null>(null);
     const anchorIndexRef = useRef<number>(-1);
-    const scrollToIndexTimeoutId = useRef<any>(null);
     const topSpacerStyle = useMemo(
         () =>
             getStyle(
@@ -333,7 +333,7 @@ const ViewportListInner = <T,>(
             (marginTopRef.current < 0 &&
                 topSpacerRect[propName.top] - marginTopRef.current >= limitsWithOverscanSize[propName.top]) ||
             (marginTopRef.current > 0 && topSpacerRect[propName.top] >= limitsWithOverscanSize[propName.top]) ||
-            (marginTopRef.current && scrollToIndexRef.current)
+            (marginTopRef.current && scrollToIndexOptionsRef.current)
         ) {
             topSpacer.style[propName.marginTop] = '0px';
             viewport.style[propName.overflowY] = 'hidden';
@@ -382,8 +382,8 @@ const ViewportListInner = <T,>(
             return;
         }
 
-        if (scrollToIndexRef.current) {
-            const targetIndex = normalizeValue(0, scrollToIndexRef.current.index, maxIndex);
+        if (scrollToIndexOptionsRef.current) {
+            const targetIndex = normalizeValue(0, scrollToIndexOptionsRef.current.index, maxIndex);
 
             if (targetIndex < startIndex || targetIndex > endIndex) {
                 setIndexes([targetIndex - prerenderItems, targetIndex + prerenderItems]);
@@ -403,9 +403,9 @@ const ViewportListInner = <T,>(
                 return;
             }
 
-            const { alignToTop, offset, delay } = scrollToIndexRef.current;
+            const { alignToTop, offset, delay } = scrollToIndexOptionsRef.current;
 
-            scrollToIndexRef.current = null;
+            scrollToIndexOptionsRef.current = null;
 
             const scrollToElement = () => {
                 const elementRect = targetElement.getBoundingClientRect();
@@ -697,8 +697,8 @@ const ViewportListInner = <T,>(
     useImperativeHandle(
         ref,
         () => ({
-            scrollToIndex: (index = -1, alignToTop = true, offset = 0, delay = -1) => {
-                scrollToIndexRef.current = { index, alignToTop, offset, delay };
+            scrollToIndex: ({ index = -1, alignToTop = true, offset = 0, delay = -1 }) => {
+                scrollToIndexOptionsRef.current = { index, alignToTop, offset, delay };
             },
         }),
         [],
