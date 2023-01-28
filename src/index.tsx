@@ -13,8 +13,6 @@ import {
     CSSProperties,
 } from 'react';
 
-const noop = () => {};
-
 const IS_SSR = typeof window === 'undefined';
 
 const IS_TOUCH_DEVICE = IS_SSR
@@ -65,48 +63,23 @@ const PROP_NAME_FOR_X_AXIS = {
     marginTop: 'marginLeft',
 } as const;
 
-const getStyle = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS, size: number, marginTop = 0) =>
-    ({
-        padding: 0,
-        margin: 0,
-        border: 'none',
-        visibility: 'hidden',
-        // We need to off 'overflow-anchor' for spacers. Otherwise, it may cause unnecessary scroll jumps.
-        overflowAnchor: 'none',
-        [propName.minHeight]: size,
-        [propName.height]: size,
-        [propName.maxHeight]: size,
-        [propName.marginTop]: marginTop,
-    } as const);
+const noop = () => {};
 
 const normalizeValue = (min: number, value: number, max = Infinity) => Math.max(Math.min(value, max), min);
 
+const getDiff = (value1: number, value2: number, step: number) => Math.ceil(Math.abs(value1 - value2) / step);
+
 const useIsomorphicLayoutEffect = IS_SSR ? useEffect : useLayoutEffect;
 
-const getLimits = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS, viewport: Element) => {
-    if (viewport === document.documentElement) {
-        return {
-            [propName.top]: 0,
-            [propName.bottom]: document.documentElement.clientHeight,
-        };
+const generateArray = <T,>(from: number, to: number, generate: (index: number) => T): T[] => {
+    const array = [];
+
+    for (let index = from; index < to; index++) {
+        array.push(generate(index));
     }
 
-    const viewportRect = viewport.getBoundingClientRect();
-
-    return {
-        [propName.top]: viewportRect[propName.top],
-        [propName.bottom]: viewportRect[propName.bottom],
-    };
+    return array;
 };
-
-const getLimitsWithOverscanSize = (
-    propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS,
-    limits: Record<string, number>,
-    overscanSize: number,
-) => ({
-    [propName.top]: limits[propName.top] - overscanSize,
-    [propName.bottom]: limits[propName.bottom] + overscanSize,
-});
 
 const findElement = ({
     fromElement,
@@ -141,18 +114,6 @@ const findElement = ({
     return [null, -1] as const;
 };
 
-const generateArray = <T,>(from: number, to: number, generate: (index: number) => T): T[] => {
-    const array = [];
-
-    for (let index = from; index < to; index++) {
-        array.push(generate(index));
-    }
-
-    return array;
-};
-
-const getDiff = (value1: number, value2: number, step: number) => Math.ceil(Math.abs(value1 - value2) / step);
-
 const findNearestScrollableElement = (
     propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS,
     node: Element | null,
@@ -173,6 +134,45 @@ const findNearestScrollableElement = (
 
     return findNearestScrollableElement(propName, node.parentNode as Element | null);
 };
+
+const getLimits = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS, viewport: Element) => {
+    if (viewport === document.documentElement) {
+        return {
+            [propName.top]: 0,
+            [propName.bottom]: document.documentElement.clientHeight,
+        };
+    }
+
+    const viewportRect = viewport.getBoundingClientRect();
+
+    return {
+        [propName.top]: viewportRect[propName.top],
+        [propName.bottom]: viewportRect[propName.bottom],
+    };
+};
+
+const getLimitsWithOverscanSize = (
+    propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS,
+    limits: Record<string, number>,
+    overscanSize: number,
+) => ({
+    [propName.top]: limits[propName.top] - overscanSize,
+    [propName.bottom]: limits[propName.bottom] + overscanSize,
+});
+
+const getStyle = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS, size: number, marginTop = 0) =>
+    ({
+        padding: 0,
+        margin: 0,
+        border: 'none',
+        visibility: 'hidden',
+        // We need to off 'overflow-anchor' for spacers. Otherwise, it may cause unnecessary scroll jumps.
+        overflowAnchor: 'none',
+        [propName.minHeight]: size,
+        [propName.height]: size,
+        [propName.maxHeight]: size,
+        [propName.marginTop]: marginTop,
+    } as const);
 
 export interface ViewportListRef {
     scrollToIndex: (index?: number, alignToTop?: boolean, offset?: number, delay?: number) => void;
@@ -450,8 +450,9 @@ const ViewportListInner = <T,>(
             const bottomSpacerRect = bottomSpacer.getBoundingClientRect();
             const limits = getLimits(propName, viewport);
             const limitsWithOverscanSize = getLimitsWithOverscanSize(propName, limits, overscanSize);
+            const renderedItemsCount = endIndex - startIndex + 1;
             const averageSize = Math.ceil(
-                (bottomSpacerRect[propName.top] - topSpacerRect[propName.bottom]) / (endIndex + 1 - startIndex),
+                (bottomSpacerRect[propName.top] - topSpacerRect[propName.bottom]) / renderedItemsCount,
             );
 
             if (scrollTopRef.current === null) {
