@@ -11,6 +11,7 @@ import {
     ForwardedRef,
     RefObject,
     CSSProperties,
+    useCallback,
 } from 'react';
 
 const IS_SSR = typeof window === 'undefined';
@@ -294,10 +295,7 @@ const ViewportListInner = <T,>(
             return autoViewport;
         };
     }, [propName, viewportRef]);
-    const performScrollRef = useRef(() => {});
-    const mainFrameRef = useRef(() => {});
-
-    performScrollRef.current = () => {
+    const performScroll = useCallback(() => {
         const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
         const bottomSpacer = bottomSpacerRef.current;
@@ -376,9 +374,8 @@ const ViewportListInner = <T,>(
         }
 
         scrollToElement();
-    };
-
-    mainFrameRef.current = () => {
+    }, [endIndex, estimatedItemHeight, estimatedItemMargin, getViewport, maxIndex, propName, startIndex]);
+    const mainFrame = useCallback(() => {
         const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
         const bottomSpacer = bottomSpacerRef.current;
@@ -607,7 +604,19 @@ const ViewportListInner = <T,>(
         }
 
         setIndexes([nextStartIndex, nextEndIndex]);
-    };
+    }, [
+        endIndex,
+        estimatedItemHeight,
+        estimatedItemMargin,
+        getViewport,
+        maxIndex,
+        onViewportIndexesChange,
+        overscanSize,
+        propName,
+        scrollThreshold,
+        startIndex,
+        withCache,
+    ]);
 
     let anchorScrollTopOnRender: number | undefined;
     let anchorHeightOnRender: number | undefined;
@@ -672,7 +681,7 @@ const ViewportListInner = <T,>(
         }
 
         viewport[propName.scrollTop] += offset;
-    });
+    }, [anchorHeightOnRender, anchorScrollTopOnRender, getViewport, overflowAnchor, propName, startIndex]);
     useIsomorphicLayoutEffect(() => {
         const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
@@ -714,15 +723,15 @@ const ViewportListInner = <T,>(
                 : estimatedItemMargin;
 
         setItemDimensions([nextItemHeight, nextItemMargin]);
-    });
+    }, [endIndex, estimatedItemHeight, estimatedItemMargin, getViewport, propName, startIndex]);
     useIsomorphicLayoutEffect(() => {
-        performScrollRef.current();
-    });
+        performScroll();
+    }, [performScroll]);
     useIsomorphicLayoutEffect(() => {
         let frameId: number;
         const frame = () => {
             frameId = requestAnimationFrame(frame);
-            mainFrameRef.current();
+            mainFrame();
         };
 
         frame();
@@ -730,7 +739,7 @@ const ViewportListInner = <T,>(
         return () => {
             cancelAnimationFrame(frameId);
         };
-    }, []);
+    }, [mainFrame]);
     useEffect(
         () => () => {
             if (scrollToIndexTimeoutId.current) {
@@ -744,10 +753,10 @@ const ViewportListInner = <T,>(
         () => ({
             scrollToIndex: ({ index = -1, alignToTop = true, offset = 0, delay = -1, prerender = 0 }) => {
                 scrollToIndexOptionsRef.current = { index, alignToTop, offset, delay, prerender };
-                performScrollRef.current();
+                performScroll();
             },
         }),
-        [],
+        [performScroll],
     );
 
     return (
