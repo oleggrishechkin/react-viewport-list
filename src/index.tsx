@@ -160,7 +160,8 @@ export interface ViewportListPropsBase {
     viewportRef?:
         | MutableRefObject<HTMLElement | null>
         | RefObject<HTMLElement | null>
-        | { current: HTMLElement | null };
+        | { current: HTMLElement | null }
+        | null;
     itemSize?: number;
     itemMargin?: number;
     overscan?: number;
