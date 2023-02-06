@@ -177,6 +177,7 @@ export interface ViewportListPropsBase {
     withCache?: boolean;
     scrollThreshold?: number;
     renderSpacer?: (props: { ref: MutableRefObject<any>; style: CSSProperties; type: 'top' | 'bottom' }) => any;
+    indexesShift?: number;
 }
 
 export interface ViewportListPropsWithItems<T> extends ViewportListPropsBase {
@@ -209,6 +210,7 @@ const ViewportListInner = <T,>(
         withCache = true,
         scrollThreshold = 0,
         renderSpacer = ({ ref, style }) => <div ref={ref} style={style} />,
+        indexesShift = 0,
     }: ViewportListPropsBase & { items?: T[]; count?: number; children: (...args: any) => any },
     ref: ForwardedRef<ViewportListRef>,
 ) => {
@@ -222,10 +224,12 @@ const ViewportListInner = <T,>(
     const itemHeightWithMargin = normalizeValue(0, estimatedItemHeight + estimatedItemMargin);
     const overscanSize = normalizeValue(0, Math.ceil(overscan * itemHeightWithMargin));
     const [indexes, setIndexes] = useState([initialIndex - initialPrerender, initialIndex + initialPrerender]);
-    const startIndex = (indexes[0] = normalizeValue(0, indexes[0], maxIndex));
-    const endIndex = (indexes[1] = normalizeValue(startIndex, indexes[1], maxIndex));
+    const anchorElementRef = useRef<Element | null>(null);
+    const anchorIndexRef = useRef<number>(-1);
     const topSpacerRef = useRef<any>(null);
     const bottomSpacerRef = useRef<any>(null);
+    const ignoreOverflowAnchorRef = useRef(false);
+    const lastIndexesShiftRef = useRef(indexesShift);
     const cacheRef = useRef<number[]>([]);
     const scrollToIndexOptionsRef = useRef<Required<ScrollToIndexOptions> | null>(
         initialIndex >= 0
@@ -238,11 +242,31 @@ const ViewportListInner = <T,>(
               }
             : null,
     );
-    const scrollToIndexTimeoutId = useRef<any>(null);
+    const scrollToIndexTimeoutIdRef = useRef<any>(null);
     const marginTopRef = useRef(0);
     const viewportIndexesRef = useRef<[number, number]>([-1, -1]);
-    const anchorElementRef = useRef<Element | null>(null);
-    const anchorIndexRef = useRef<number>(-1);
+    const scrollTopRef = useRef<number | null>(null);
+    const [startIndex, endIndex] = useMemo(() => {
+        indexes[0] = normalizeValue(0, indexes[0], maxIndex);
+        indexes[1] = normalizeValue(indexes[0], indexes[1], maxIndex);
+
+        const shift = indexesShift - lastIndexesShiftRef.current;
+
+        lastIndexesShiftRef.current = indexesShift;
+
+        const topSpacer = topSpacerRef.current;
+
+        if (topSpacer && shift) {
+            indexes[0] = normalizeValue(0, indexes[0] + shift, maxIndex);
+            indexes[1] = normalizeValue(indexes[0], indexes[1] + shift, maxIndex);
+            anchorElementRef.current = topSpacer.nextSibling as Element;
+            anchorIndexRef.current = indexes[0];
+            ignoreOverflowAnchorRef.current = true;
+        }
+
+        return indexes;
+    }, [indexesShift, indexes, maxIndex]);
+
     const topSpacerStyle = useMemo(
         () =>
             getStyle(
@@ -267,7 +291,6 @@ const ViewportListInner = <T,>(
             ),
         [propName, endIndex, maxIndex, itemHeightWithMargin, estimatedItemHeight],
     );
-    const scrollTopRef = useRef<number | null>(null);
     const getViewport = useMemo(() => {
         let autoViewport: any = null;
 
@@ -304,7 +327,7 @@ const ViewportListInner = <T,>(
             !viewport ||
             !topSpacer ||
             !bottomSpacer ||
-            scrollToIndexTimeoutId.current ||
+            scrollToIndexTimeoutIdRef.current ||
             !scrollToIndexOptionsRef.current ||
             estimatedItemHeight === 0 ||
             estimatedItemMargin === -1
@@ -363,12 +386,12 @@ const ViewportListInner = <T,>(
                 : elementRect[propName.bottom] - limits[propName.top] - viewport[propName.clientHeight] + offset;
 
             viewport[propName.scrollTop] += shift;
-            scrollToIndexTimeoutId.current = null;
+            scrollToIndexTimeoutIdRef.current = null;
         };
         const scrollToElementDelay = delay < 0 && SHOULD_DELAY_SCROLL ? 30 : delay;
 
         if (scrollToElementDelay > 0) {
-            scrollToIndexTimeoutId.current = setTimeout(scrollToElement, scrollToElementDelay);
+            scrollToIndexTimeoutIdRef.current = setTimeout(scrollToElement, scrollToElementDelay);
 
             return;
         }
@@ -384,7 +407,7 @@ const ViewportListInner = <T,>(
             !viewport ||
             !topSpacer ||
             !bottomSpacer ||
-            scrollToIndexTimeoutId.current ||
+            scrollToIndexTimeoutIdRef.current ||
             scrollToIndexOptionsRef.current ||
             estimatedItemHeight === 0 ||
             estimatedItemMargin === -1
@@ -632,8 +655,10 @@ const ViewportListInner = <T,>(
         anchorElementRef.current = null;
 
         const anchorIndex = anchorIndexRef.current;
+        const ignoreOverflowAnchor = ignoreOverflowAnchorRef.current;
 
         anchorIndexRef.current = -1;
+        ignoreOverflowAnchorRef.current = false;
 
         const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
@@ -647,7 +672,7 @@ const ViewportListInner = <T,>(
             anchorScrollTopOnRender === undefined ||
             anchorHeightOnRender === undefined ||
             anchorScrollTopOnRender !== viewport[propName.scrollTop] ||
-            (IS_OVERFLOW_ANCHOR_SUPPORTED && overflowAnchor !== 'none')
+            (IS_OVERFLOW_ANCHOR_SUPPORTED && overflowAnchor !== 'none' && !ignoreOverflowAnchor)
         ) {
             return;
         }
@@ -742,8 +767,8 @@ const ViewportListInner = <T,>(
     }, [mainFrame]);
     useEffect(
         () => () => {
-            if (scrollToIndexTimeoutId.current) {
-                clearTimeout(scrollToIndexTimeoutId.current);
+            if (scrollToIndexTimeoutIdRef.current) {
+                clearTimeout(scrollToIndexTimeoutIdRef.current);
             }
         },
         [],
