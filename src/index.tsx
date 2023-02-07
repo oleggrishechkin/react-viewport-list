@@ -178,6 +178,16 @@ export interface ViewportListPropsBase {
     scrollThreshold?: number;
     renderSpacer?: (props: { ref: MutableRefObject<any>; style: CSSProperties; type: 'top' | 'bottom' }) => any;
     indexesShift?: number;
+    getItemBoundingClientRect?: (element: Element) =>
+        | DOMRect
+        | {
+              bottom: number;
+              left: number;
+              right: number;
+              top: number;
+              width: number;
+              height: number;
+          };
 }
 
 export interface ViewportListPropsWithItems<T> extends ViewportListPropsBase {
@@ -211,6 +221,7 @@ const ViewportListInner = <T,>(
         scrollThreshold = 0,
         renderSpacer = ({ ref, style }) => <div ref={ref} style={style} />,
         indexesShift = 0,
+        getItemBoundingClientRect = (element) => element.getBoundingClientRect(),
     }: ViewportListPropsBase & { items?: T[]; count?: number; children: (...args: any) => any },
     ref: ForwardedRef<ViewportListRef>,
 ) => {
@@ -380,7 +391,7 @@ const ViewportListInner = <T,>(
         scrollToIndexOptionsRef.current = null;
 
         const scrollToElement = () => {
-            const elementRect = targetElement.getBoundingClientRect();
+            const elementRect = getItemBoundingClientRect(targetElement);
             const shift = alignToTop
                 ? elementRect[propName.top] - limits[propName.top] + offset
                 : elementRect[propName.bottom] - limits[propName.top] - viewport[propName.clientHeight] + offset;
@@ -397,7 +408,16 @@ const ViewportListInner = <T,>(
         }
 
         scrollToElement();
-    }, [endIndex, estimatedItemHeight, estimatedItemMargin, getViewport, maxIndex, propName, startIndex]);
+    }, [
+        endIndex,
+        estimatedItemHeight,
+        estimatedItemMargin,
+        getItemBoundingClientRect,
+        getViewport,
+        maxIndex,
+        propName,
+        startIndex,
+    ]);
     const mainFrame = useCallback(() => {
         const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
@@ -477,11 +497,15 @@ const ViewportListInner = <T,>(
         const isBottomSecondAboveTop =
             !isAllAboveTop &&
             !isAllBelowBottom &&
-            bottomSecondElement.getBoundingClientRect()[propName.bottom] > limitsWithOverscanSize[propName.bottom];
+            (bottomSecondElement === topSpacer ? topSpacerRect : getItemBoundingClientRect(bottomSecondElement))[
+                propName.bottom
+            ] > limitsWithOverscanSize[propName.bottom];
         const isTopSecondAboveTop =
             !isAllAboveTop &&
             !isAllBelowBottom &&
-            topSecondElement.getBoundingClientRect()[propName.top] < limitsWithOverscanSize[propName.top];
+            (topSecondElement === bottomSpacer ? bottomSpacerRect : getItemBoundingClientRect(topSecondElement))[
+                propName.top
+            ] < limitsWithOverscanSize[propName.top];
         let nextStartIndex = startIndex;
         let nextEndIndex = endIndex;
 
@@ -534,7 +558,7 @@ const ViewportListInner = <T,>(
                 fromIndex: endIndex,
                 asc: false,
                 compare: (element) =>
-                    element.getBoundingClientRect()[propName.bottom] <= limitsWithOverscanSize[propName.bottom],
+                    getItemBoundingClientRect(element)[propName.bottom] <= limitsWithOverscanSize[propName.bottom],
             });
 
             if (index !== -1) {
@@ -548,7 +572,7 @@ const ViewportListInner = <T,>(
                 toElement: bottomSpacer,
                 fromIndex: startIndex,
                 compare: (element) =>
-                    element.getBoundingClientRect()[propName.top] >= limitsWithOverscanSize[propName.top],
+                    getItemBoundingClientRect(element)[propName.top] >= limitsWithOverscanSize[propName.top],
             });
 
             if (index !== -1) {
@@ -561,7 +585,7 @@ const ViewportListInner = <T,>(
                 fromElement: topElement,
                 toElement: bottomSpacer,
                 fromIndex: startIndex,
-                compare: (element) => element.getBoundingClientRect()[propName.bottom] > limits[propName.top],
+                compare: (element) => getItemBoundingClientRect(element)[propName.bottom] > limits[propName.top],
             });
 
             if (startViewportIndex === -1) {
@@ -573,7 +597,7 @@ const ViewportListInner = <T,>(
                 toElement: topSpacer,
                 fromIndex: endIndex,
                 asc: false,
-                compare: (element) => element.getBoundingClientRect()[propName.top] < limits[propName.bottom],
+                compare: (element) => getItemBoundingClientRect(element)[propName.top] < limits[propName.bottom],
             });
 
             if (endViewportIndex === -1) {
@@ -613,8 +637,10 @@ const ViewportListInner = <T,>(
                             return true;
                         }
 
-                        if (withCache && element[propName.clientHeight] !== estimatedItemHeight) {
-                            cacheRef.current[index] = element[propName.clientHeight];
+                        const elementRect = getItemBoundingClientRect(element);
+
+                        if (withCache && elementRect[propName.height] !== estimatedItemHeight) {
+                            cacheRef.current[index] = elementRect[propName.height];
                         }
 
                         return false;
@@ -631,6 +657,7 @@ const ViewportListInner = <T,>(
         endIndex,
         estimatedItemHeight,
         estimatedItemMargin,
+        getItemBoundingClientRect,
         getViewport,
         maxIndex,
         onViewportIndexesChange,
@@ -647,7 +674,7 @@ const ViewportListInner = <T,>(
     if (anchorElementRef.current && getViewport() && topSpacerRef.current) {
         anchorScrollTopOnRender = getViewport()[propName.scrollTop];
         anchorHeightOnRender =
-            anchorElementRef.current.getBoundingClientRect()[propName.top] -
+            getItemBoundingClientRect(anchorElementRef.current)[propName.top] -
             topSpacerRef.current.getBoundingClientRect()[propName.top];
     }
 
@@ -690,7 +717,7 @@ const ViewportListInner = <T,>(
         }
 
         const offset =
-            anchorElement.getBoundingClientRect()[propName.top] -
+            getItemBoundingClientRect(anchorElement)[propName.top] -
             topSpacer.getBoundingClientRect()[propName.top] -
             anchorHeightOnRender;
 
@@ -706,7 +733,15 @@ const ViewportListInner = <T,>(
         }
 
         viewport[propName.scrollTop] += offset;
-    }, [anchorHeightOnRender, anchorScrollTopOnRender, getViewport, overflowAnchor, propName, startIndex]);
+    }, [
+        anchorHeightOnRender,
+        anchorScrollTopOnRender,
+        getItemBoundingClientRect,
+        getViewport,
+        overflowAnchor,
+        propName,
+        startIndex,
+    ]);
     useIsomorphicLayoutEffect(() => {
         const viewport = getViewport();
         const topSpacer = topSpacerRef.current;
@@ -726,7 +761,7 @@ const ViewportListInner = <T,>(
             toElement: bottomSpacer,
             fromIndex: startIndex,
             compare: (element) => {
-                itemsHeightSum += element[propName.clientHeight];
+                itemsHeightSum += getItemBoundingClientRect(element)[propName.height];
 
                 return false;
             },
@@ -748,11 +783,19 @@ const ViewportListInner = <T,>(
                 : estimatedItemMargin;
 
         setItemDimensions([nextItemHeight, nextItemMargin]);
-    }, [endIndex, estimatedItemHeight, estimatedItemMargin, getViewport, propName, startIndex]);
+    }, [
+        endIndex,
+        estimatedItemHeight,
+        estimatedItemMargin,
+        getItemBoundingClientRect,
+        getViewport,
+        propName,
+        startIndex,
+    ]);
     useIsomorphicLayoutEffect(() => {
         performScroll();
     }, [performScroll]);
-    useIsomorphicLayoutEffect(() => {
+    useEffect(() => {
         let frameId: number;
         const frame = () => {
             frameId = requestAnimationFrame(frame);
