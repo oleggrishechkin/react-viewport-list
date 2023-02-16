@@ -830,11 +830,12 @@ const ViewportListInner = <T,>(
     return (
         <Fragment>
             {renderSpacer({ ref: topSpacerRef, style: topSpacerStyle, type: 'top' })}
-            {generateArray(
-                startIndex,
-                endIndex + 1,
-                withCount ? children : (index) => children(items[index], index, items),
-            )}
+            {(!!count || !!items.length) &&
+                generateArray(
+                    startIndex,
+                    endIndex + 1,
+                    withCount ? children : (index) => children(items[index], index, items),
+                )}
             {renderSpacer({ ref: bottomSpacerRef, style: bottomSpacerStyle, type: 'bottom' })}
         </Fragment>
     );
