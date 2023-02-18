@@ -652,14 +652,12 @@ const ViewportListInner = <T,>(
         };
     });
 
-    let anchorScrollTopOnRender: number | undefined;
     let anchorHeightOnRender: number | undefined;
 
     if (anchorElementRef.current && getViewport() && topSpacerRef.current) {
-        anchorScrollTopOnRender = getViewport()[propName.scrollTop];
         anchorHeightOnRender =
             getItemBoundingClientRect(anchorElementRef.current)[propName.top] -
-            topSpacerRef.current.getBoundingClientRect()[propName.top];
+            (getViewport() === document.documentElement ? 0 : getViewport().getBoundingClientRect()[propName.top]);
     }
 
     useIsomorphicLayoutEffect(() => {
@@ -680,9 +678,7 @@ const ViewportListInner = <T,>(
             !viewport ||
             !topSpacer ||
             !bottomSpacer ||
-            anchorScrollTopOnRender === undefined ||
             anchorHeightOnRender === undefined ||
-            anchorScrollTopOnRender !== viewport[propName.scrollTop] ||
             (IS_OVERFLOW_ANCHOR_SUPPORTED && overflowAnchor !== 'none' && !ignoreOverflowAnchor)
         ) {
             return;
@@ -702,7 +698,7 @@ const ViewportListInner = <T,>(
 
         const offset =
             getItemBoundingClientRect(anchorElement)[propName.top] -
-            topSpacer.getBoundingClientRect()[propName.top] -
+            (viewport === document.documentElement ? 0 : viewport.getBoundingClientRect()[propName.top]) -
             anchorHeightOnRender;
 
         if (!offset) {
