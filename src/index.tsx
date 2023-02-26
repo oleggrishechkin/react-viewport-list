@@ -281,25 +281,25 @@ const ViewportListInner = <T,>(
         () =>
             getStyle(
                 propName,
-                cacheRef.current
+                (withCache ? cacheRef.current : [])
                     .slice(0, startIndex)
                     .reduce((sum, next) => sum + (next - estimatedItemHeight), startIndex * itemHeightWithMargin),
                 marginTopRef.current,
             ),
-        [propName, startIndex, itemHeightWithMargin, estimatedItemHeight],
+        [propName, withCache, startIndex, itemHeightWithMargin, estimatedItemHeight],
     );
     const bottomSpacerStyle = useMemo(
         () =>
             getStyle(
                 propName,
-                cacheRef.current
+                (withCache ? cacheRef.current : [])
                     .slice(endIndex + 1, maxIndex + 1)
                     .reduce(
                         (sum, next) => sum + (next - estimatedItemHeight),
                         itemHeightWithMargin * (maxIndex - endIndex),
                     ),
             ),
-        [propName, endIndex, maxIndex, itemHeightWithMargin, estimatedItemHeight],
+        [propName, withCache, endIndex, maxIndex, itemHeightWithMargin, estimatedItemHeight],
     );
     const getViewport = useMemo(() => {
         let autoViewport: any = null;
@@ -617,14 +617,11 @@ const ViewportListInner = <T,>(
             }
 
             if (nextStartIndex !== startIndex) {
-                let anchorElement: Element | null = null;
-                let anchorElementIndex = -1;
-
-                if (startIndex >= nextStartIndex && startIndex <= nextEndIndex) {
-                    anchorElement = topElement;
-                    anchorElementIndex = startIndex;
-                } else if (nextStartIndex >= startIndex && nextStartIndex <= endIndex) {
-                    [anchorElement, anchorElementIndex] = findElement({
+                if (startIndex >= nextStartIndex) {
+                    anchorElementRef.current = topElement;
+                    anchorIndexRef.current = startIndex;
+                } else {
+                    const [anchorElement, anchorElementIndex] = findElement({
                         fromElement: topElement,
                         toElement: bottomSpacer,
                         fromIndex: startIndex,
@@ -635,17 +632,22 @@ const ViewportListInner = <T,>(
 
                             const elementRect = getItemBoundingClientRect(element);
 
-                            if (withCache && elementRect[propName.height] !== estimatedItemHeight) {
+                            if (elementRect[propName.height] !== estimatedItemHeight) {
                                 cacheRef.current[index] = elementRect[propName.height];
                             }
 
                             return false;
                         },
                     });
-                }
 
-                anchorElementRef.current = anchorElement;
-                anchorIndexRef.current = anchorElementIndex;
+                    if (anchorElement) {
+                        anchorElementRef.current = anchorElement;
+                        anchorIndexRef.current = anchorElementIndex;
+                    } else {
+                        anchorElementRef.current = bottomElement;
+                        anchorIndexRef.current = endIndex;
+                    }
+                }
             }
 
             setIndexes([nextStartIndex, nextEndIndex]);
@@ -684,20 +686,44 @@ const ViewportListInner = <T,>(
             return;
         }
 
-        const topElement = topSpacer.nextSibling as Element;
-        const [anchorElement] = findElement({
-            fromElement: topElement,
-            toElement: bottomSpacer,
-            fromIndex: startIndex,
-            compare: (_, index) => index === anchorIndex,
-        });
+        let top = null;
 
-        if (!anchorElement) {
+        if (anchorIndex >= startIndex && anchorIndex <= endIndex) {
+            const [anchorElement] = findElement({
+                fromElement: topSpacer.nextSibling as Element,
+                toElement: bottomSpacer,
+                fromIndex: startIndex,
+                compare: (_, index) => index === anchorIndex,
+            });
+
+            if (anchorElement) {
+                top = getItemBoundingClientRect(anchorElement)[propName.top];
+            }
+        } else {
+            if (anchorIndex < startIndex) {
+                top =
+                    topSpacer.getBoundingClientRect()[propName.top] +
+                    (withCache ? cacheRef.current : [])
+                        .slice(0, anchorIndex)
+                        .reduce((sum, next) => sum + (next - estimatedItemHeight), anchorIndex * itemHeightWithMargin);
+            } else if (anchorIndex <= maxIndex) {
+                top =
+                    bottomSpacer.getBoundingClientRect()[propName.top] +
+                    (withCache ? cacheRef.current : [])
+                        .slice(endIndex + 1, anchorIndex)
+                        .reduce(
+                            (sum, next) => sum + (next - estimatedItemHeight),
+                            itemHeightWithMargin * (anchorIndex - 1 - endIndex),
+                        );
+            }
+        }
+
+        if (top === null) {
             return;
         }
 
         const offset =
-            getItemBoundingClientRect(anchorElement)[propName.top] -
+            top -
             (viewport === document.documentElement ? 0 : viewport.getBoundingClientRect()[propName.top]) -
             anchorHeightOnRender;
 
