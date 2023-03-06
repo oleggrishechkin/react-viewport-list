@@ -129,7 +129,7 @@ const ItemList = ({
       <button
         className="up-button"
         onClick={() =>
-          listRef.current.scrollToIndex(0)
+          listRef.current.scrollToIndex({index:0})
         }
       />
     </div>
