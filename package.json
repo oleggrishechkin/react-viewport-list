@@ -1,6 +1,6 @@
 {
     "name": "react-viewport-list",
-    "version": "7.0.0-beta.4",
+    "version": "7.0.0",
     "description": "📜 Virtualization for lists with dynamic item size",
     "keywords": [
         "react",
