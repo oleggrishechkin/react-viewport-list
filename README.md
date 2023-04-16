@@ -67,30 +67,31 @@ Try 100k list [demo](https://codesandbox.io/s/react-viewport-list-xw2rt)
   ```
 
 MutableRefObject\<HTMLElement / null\> / RefObject\<HTMLElement / null\> / { current: HTMLElement / null } / null
+
 ## Props
 
-| name                                | type                                                                                                                              | default                                               | description                                                                                                                                                                                                                                                 |
-|-------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `viewportRef`                       | MutableRefObject\<HTMLElement / null\> / RefObject\<HTMLElement / null\> / { current: HTMLElement / null } / null                 | required                                              | Viewport and scroll container.<br>`document.documentElement` will be used if `viewportRef` not provided.                                                                                                                                                    |
-| `items`                             | T[]                                                                                                                               | []                                                    | Array of items.                                                                                                                                                                                                                                             |
-| `itemSize`                          | number                                                                                                                            | 0                                                     | Item average (estimated) size (`height` for `axis="y"` and `width` for `axis="x"`) in px.<br>Size should be greater or equal zero.<br>Size will be computed automatically if `itemMinSize` not provided or equal zero.                                      |
-| `itemMargin`                        | number                                                                                                                            | -1                                                    | Item margin (`margin-bottom` for `axis="y"` and `margin-right` for `axis="x"`) in px.<br>Margin should be greater or equal -1.<br>Margin will be computed automatically if `margin` not provided or equal -1.<br>You should still set margin in item styles |
-| `overscan`                          | number                                                                                                                            | 1                                                     | Count of "overscan" items.                                                                                                                                                                                                                                  |
-| `axis`                              | "y" / "x"                                                                                                                         | 'y'                                                   | Scroll axis:<ul><li>"y" - vertical</li><li>"x" - horizontal</li></ul>                                                                                                                                                                                       |
-| `initialIndex`                      | number                                                                                                                            | -1                                                    | Initial item index in viewport.                                                                                                                                                                                                                             |
-| `initialAlignToTop`                 | boolean                                                                                                                           | true                                                  | [scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) param.<br>Used with `initialIndex`                                                                                                                                |
-| `initialOffset`                     | number                                                                                                                            | 0                                                     | Offset after `scrollIntoView` call.<br>Used with `initialIndex`.<br>This value will be added to the scroll after scroll to index.                                                                                                                           |
-| `initialDelay`                      | number                                                                                                                            | -1                                                    | `setTimeout` delay for initial `scrollToIndex`.<br>Used with `initialIndex`.                                                                                                                                                                                |
-| `initialPrerender`                  | number                                                                                                                            | 0                                                     | Used with `initialIndex`.<br>This value will modify initial start index and initial end index like `[initialIndex - initialPrerender, initialIndex + initialPrerender]`.<br>You can use it to avoid blank screen with only one initial item rendered        |
-| `children`                          | (item: T, index: number, array: T[]) => ReactNode                                                                                 | required                                              | Item render function.<br>Similar to [`Array.Prototype.map()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map).                                                                                                  |
-| `onViewportIndexesChange`           | (viewportIndexes: [number, number]) => void                                                                                       | optional                                              | Will be called on rendered in viewport indexes change.                                                                                                                                                                                                      |
-| `overflowAnchor`                    | "none" / "auto"                                                                                                                   | "auto"                                                | Compatibility for `overflow-anchor: none`.<br>Set it to "none" if you use `overflow-anchor: none` in your parent container styles.                                                                                                                          |
-| `withCache`                         | boolean                                                                                                                           | true                                                  | Cache rendered item heights.                                                                                                                                                                                                                                |
-| `scrollThreshold`                   | number                                                                                                                            | 0                                                     | If scroll diff more than `scrollThreshold` setting indexes was skipped. It's can be useful for better fast scroll UX.                                                                                                                                       |
-| `renderSpacer`                      | (props: { ref: MutableRefObject<any>; style: CSSProperties; type: 'top' / 'bottom' }) => ReactNode                                | ({ ref, style }) => \<div ref={ref} style={style} /\> | In some rare cases you can use specific elements/styles instead of default spacers                                                                                                                                                                          |
-| `count`                             | number                                                                                                                            | optional                                              | You can use items count instead of items directly. Use should use different children: (index: number) => ReactNode                                                                                                                                          |
-| `indexesShift `                     | number                                                                                                                            | 0                                                     | Every time you unshift (prepend items) you should increase indexesShift by prepended items count. If you shift items (remove items from top of the list you should decrease indexesShift by removed items count).                                           |
-| `getItemBoundingClientRect `        | (element: Element) => DOMRect /  { bottom: number; left: number; right: number; top: number; width: number; height: number; }     | (element) => element.getBoundingClientRect()          | You can use custom rect getter to support `display: contents` or other cases when `element.getBoundingClientRect()` returns "bad" data                                                                                                                      |
+| name                         | type                                                                                                                         | default                                               | description                                                                                                                                                                                                                                                 |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `viewportRef`                | MutableRefObject\<HTMLElement / null\> / RefObject\<HTMLElement / null\> / { current: HTMLElement / null } / null            | required                                              | Viewport and scroll container.<br>`document.documentElement` will be used if `viewportRef` not provided.                                                                                                                                                    |
+| `items`                      | T[]                                                                                                                          | []                                                    | Array of items.                                                                                                                                                                                                                                             |
+| `itemSize`                   | number                                                                                                                       | 0                                                     | Item average (estimated) size (`height` for `axis="y"` and `width` for `axis="x"`) in px.<br>Size should be greater or equal zero.<br>Size will be computed automatically if `itemMinSize` not provided or equal zero.                                      |
+| `itemMargin`                 | number                                                                                                                       | -1                                                    | Item margin (`margin-bottom` for `axis="y"` and `margin-right` for `axis="x"`) in px.<br>Margin should be greater or equal -1.<br>Margin will be computed automatically if `margin` not provided or equal -1.<br>You should still set margin in item styles |
+| `overscan`                   | number                                                                                                                       | 1                                                     | Count of "overscan" items.                                                                                                                                                                                                                                  |
+| `axis`                       | "y" / "x"                                                                                                                    | 'y'                                                   | Scroll axis:<ul><li>"y" - vertical</li><li>"x" - horizontal</li></ul>                                                                                                                                                                                       |
+| `initialIndex`               | number                                                                                                                       | -1                                                    | Initial item index in viewport.                                                                                                                                                                                                                             |
+| `initialAlignToTop`          | boolean                                                                                                                      | true                                                  | [scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) param.<br>Used with `initialIndex`                                                                                                                                |
+| `initialOffset`              | number                                                                                                                       | 0                                                     | Offset after `scrollIntoView` call.<br>Used with `initialIndex`.<br>This value will be added to the scroll after scroll to index.                                                                                                                           |
+| `initialDelay`               | number                                                                                                                       | -1                                                    | `setTimeout` delay for initial `scrollToIndex`.<br>Used with `initialIndex`.                                                                                                                                                                                |
+| `initialPrerender`           | number                                                                                                                       | 0                                                     | Used with `initialIndex`.<br>This value will modify initial start index and initial end index like `[initialIndex - initialPrerender, initialIndex + initialPrerender]`.<br>You can use it to avoid blank screen with only one initial item rendered        |
+| `children`                   | (item: T, index: number, array: T[]) => ReactNode                                                                            | required                                              | Item render function.<br>Similar to [`Array.Prototype.map()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map).                                                                                                  |
+| `onViewportIndexesChange`    | (viewportIndexes: [number, number]) => void                                                                                  | optional                                              | Will be called on rendered in viewport indexes change.                                                                                                                                                                                                      |
+| `overflowAnchor`             | "none" / "auto"                                                                                                              | "auto"                                                | Compatibility for `overflow-anchor: none`.<br>Set it to "none" if you use `overflow-anchor: none` in your parent container styles.                                                                                                                          |
+| `withCache`                  | boolean                                                                                                                      | true                                                  | Cache rendered item heights.                                                                                                                                                                                                                                |
+| `scrollThreshold`            | number                                                                                                                       | 0                                                     | If scroll diff more than `scrollThreshold` setting indexes was skipped. It's can be useful for better fast scroll UX.                                                                                                                                       |
+| `renderSpacer`               | (props: { ref: MutableRefObject<any>; style: CSSProperties; type: 'top' / 'bottom' }) => ReactNode                           | ({ ref, style }) => \<div ref={ref} style={style} /\> | In some rare cases you can use specific elements/styles instead of default spacers                                                                                                                                                                          |
+| `count`                      | number                                                                                                                       | optional                                              | You can use items count instead of items directly. Use should use different children: (index: number) => ReactNode                                                                                                                                          |
+| `indexesShift `              | number                                                                                                                       | 0                                                     | Every time you unshift (prepend items) you should increase indexesShift by prepended items count. If you shift items (remove items from top of the list you should decrease indexesShift by removed items count).                                           |
+| `getItemBoundingClientRect ` | (element: Element) => DOMRect / { bottom: number; left: number; right: number; top: number; width: number; height: number; } | (element) => element.getBoundingClientRect()          | You can use custom rect getter to support `display: contents` or other cases when `element.getBoundingClientRect()` returns "bad" data                                                                                                                      |
 
 ## Methods
 
@@ -100,13 +101,13 @@ scrollToIndex method has only one param - options;
 
 **Options param**
 
-| name         | type     | default   | description                                                                                                                                                                                               |
-|--------------|----------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `index`      | number   | -1        | Item index for scroll.                                                                                                                                                                                    |
-| `alignToTop` | boolean  | true      | [scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) param. Only boolean option supported.                                                                           |
-| `offset`     | number   | 0         | Offset after `scrollIntoView ` call.<br>This value will be added to the scroll after scroll to index.                                                                                                     |
-| `delay`      | number   | -1        | `setTimeout` delay for initial `scrollToIndex`.                                                                                                                                                           |
-| `prerender`  | number   | 0         | This value will modify initial start index and initial end index like `[index - initialPrerender, index + initialPrerender]`.<br>You can use it to avoid blank screen with only one initial item rendered |
+| name         | type    | default | description                                                                                                                                                                                               |
+| ------------ | ------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index`      | number  | -1      | Item index for scroll.                                                                                                                                                                                    |
+| `alignToTop` | boolean | true    | [scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView) param. Only boolean option supported.                                                                           |
+| `offset`     | number  | 0       | Offset after `scrollIntoView ` call.<br>This value will be added to the scroll after scroll to index.                                                                                                     |
+| `delay`      | number  | -1      | `setTimeout` delay for initial `scrollToIndex`.                                                                                                                                                           |
+| `prerender`  | number  | 0       | This value will modify initial start index and initial end index like `[index - initialPrerender, index + initialPrerender]`.<br>You can use it to avoid blank screen with only one initial item rendered |
 
 **Usage**
 
@@ -138,9 +139,71 @@ const ItemList = ({
       <button
         className="up-button"
         onClick={() =>
-          listRef.current.scrollToIndex({ index: 0 })
+          listRef.current.scrollToIndex({
+            index: 0,
+          })
         }
       />
+    </div>
+  );
+};
+
+export { ItemList };
+```
+
+### getScrollPosition
+
+getScrollPosition returns an object with scroll position: `{ index: number, offset: number }`
+
+**Returns**
+
+| name     | type   | description                                                                                           |
+| -------- | ------ |-------------------------------------------------------------------------------------------------------|
+| `index`  | number | Item index for scroll.                                                                                |
+| `offset` | number | Offset after `scrollIntoView ` call.<br>This value will be added to the scroll after scroll to index. |
+
+If `items=[]` or `count=0` getScrollPosition returns `{ index: -1; offset: 0 }`
+
+**Usage**
+
+```typescript jsx
+import { useEffect, useRef } from 'react';
+import { ViewportList } from 'react-viewport-list';
+
+const ItemList = ({
+  items,
+}: {
+  items: { id: string; title: string }[];
+}) => {
+  const ref = useRef(null);
+  const listRef = useRef(null);
+
+  useEffect(
+    () => () => {
+      window.sessionStorage.setItem(
+        'lastScrollPosition',
+        JSON.stringify(
+          listRef.current.getScrollPosition(),
+        ),
+      );
+    },
+    [],
+  );
+
+  return (
+    <div className="scroll-container" ref={ref}>
+      <ViewportList
+        ref={listRef}
+        viewportRef={ref}
+        items={items}
+      >
+        {(item) => (
+          <div key={item.id} className="item">
+            {item.title}
+          </div>
+        )}
+      </ViewportList>
+      <button className="up-button" />
     </div>
   );
 };
@@ -343,30 +406,29 @@ If you have issues with scroll in Safari and other browsers without `overflow-an
 
   ```javascript
   import {
-      useImperativeHandle,
-      forwardRef,
+    useImperativeHandle,
+    forwardRef,
   } from 'react';
-  
-  export const ViewportListMock = forwardRef((
-      { items = [], children },
-      ref
-  ) => {
+
+  export const ViewportListMock = forwardRef(
+    ({ items = [], children }, ref) => {
       useImperativeHandle(
-          ref,
-          () => ({
-              scrollToIndex: () => {},
-          }),
-          [],
+        ref,
+        () => ({
+          scrollToIndex: () => {},
+        }),
+        [],
       );
-  
+
       return (
-          <>
-              <div />
-              {items.map(children)}
-              <div />
-          </>
+        <>
+          <div />
+          {items.map(children)}
+          <div />
+        </>
       );
-  });
+    },
+  );
 
   export default ViewportListMock;
   ```

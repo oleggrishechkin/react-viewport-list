@@ -154,6 +154,7 @@ export interface ScrollToIndexOptions {
 
 export interface ViewportListRef {
     scrollToIndex: (options: ScrollToIndexOptions) => void;
+    getScrollPosition: () => { index: number; offset: number };
 }
 
 export interface ViewportListPropsBase {
@@ -329,6 +330,7 @@ const ViewportListInner = <T,>(
         };
     }, [propName, viewportRef]);
     const mainFrameRef = useRef(() => {});
+    const getScrollPositionRef = useRef(() => ({ index: -1, offset: 0 }));
 
     useIsomorphicLayoutEffect(() => {
         mainFrameRef.current = () => {
@@ -652,6 +654,44 @@ const ViewportListInner = <T,>(
 
             setIndexes([nextStartIndex, nextEndIndex]);
         };
+        getScrollPositionRef.current = () => {
+            const viewport = getViewport();
+            const topSpacer = topSpacerRef.current;
+            const bottomSpacer = bottomSpacerRef.current;
+
+            let scrollIndex = -1;
+            let scrollOffset = 0;
+
+            if (!viewport || !topSpacer || !bottomSpacer) {
+                return { index: scrollIndex, offset: scrollOffset };
+            }
+
+            const topElement = topSpacer.nextSibling as Element;
+            const viewportRect = viewport.getBoundingClientRect();
+            const limits = {
+                [propName.top]: viewport === document.documentElement ? 0 : viewportRect[propName.top],
+                [propName.bottom]:
+                    viewport === document.documentElement
+                        ? document.documentElement.clientHeight
+                        : viewportRect[propName.bottom],
+            };
+
+            findElement({
+                fromElement: topElement,
+                toElement: bottomSpacer,
+                fromIndex: startIndex,
+                compare: (element, index) => {
+                    const rect = getItemBoundingClientRect(element);
+
+                    scrollIndex = index;
+                    scrollOffset = limits[propName.top] - rect[propName.top];
+
+                    return rect[propName.bottom] > limits[propName.top];
+                },
+            });
+
+            return { index: scrollIndex, offset: scrollOffset };
+        };
     });
 
     let anchorHeightOnRender: number | undefined;
@@ -764,6 +804,7 @@ const ViewportListInner = <T,>(
                 scrollToIndexOptionsRef.current = { index, alignToTop, offset, delay, prerender };
                 mainFrameRef.current();
             },
+            getScrollPosition: () => getScrollPositionRef.current(),
         }),
         [],
     );
