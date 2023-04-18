@@ -351,7 +351,7 @@ const ViewportListInner = <T,>(
                 [propName.top]: viewport === document.documentElement ? 0 : viewportRect[propName.top],
                 [propName.bottom]:
                     viewport === document.documentElement
-                        ? document.documentElement.clientHeight
+                        ? document.documentElement[propName.clientHeight]
                         : viewportRect[propName.bottom],
             };
             const limitsWithOverscanSize = {
@@ -672,7 +672,7 @@ const ViewportListInner = <T,>(
                 [propName.top]: viewport === document.documentElement ? 0 : viewportRect[propName.top],
                 [propName.bottom]:
                     viewport === document.documentElement
-                        ? document.documentElement.clientHeight
+                        ? document.documentElement[propName.clientHeight]
                         : viewportRect[propName.bottom],
             };
 
