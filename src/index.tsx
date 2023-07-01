@@ -1,148 +1,29 @@
 import {
     useState,
     useRef,
-    useEffect,
     Fragment,
     useImperativeHandle,
-    useLayoutEffect,
-    useMemo,
     MutableRefObject,
     forwardRef,
     ForwardedRef,
     RefObject,
     CSSProperties,
 } from 'react';
-
-const IS_SSR = typeof window === 'undefined';
-
-const IS_TOUCH_DEVICE =
-    !IS_SSR &&
-    (() => {
-        try {
-            return 'ontouchstart' in window || navigator.maxTouchPoints;
-        } catch {
-            return false;
-        }
-    })();
-
-const IS_OVERFLOW_ANCHOR_SUPPORTED =
-    !IS_SSR &&
-    (() => {
-        try {
-            return window.CSS.supports('overflow-anchor: auto');
-        } catch {
-            return false;
-        }
-    })();
-
-const SHOULD_DELAY_SCROLL = IS_TOUCH_DEVICE && !IS_OVERFLOW_ANCHOR_SUPPORTED;
-
-const PROP_NAME_FOR_Y_AXIS = {
-    top: 'top',
-    bottom: 'bottom',
-    clientHeight: 'clientHeight',
-    scrollHeight: 'scrollHeight',
-    scrollTop: 'scrollTop',
-    overflowY: 'overflowY',
-    height: 'height',
-    minHeight: 'minHeight',
-    maxHeight: 'maxHeight',
-    marginTop: 'marginTop',
-} as const;
-
-const PROP_NAME_FOR_X_AXIS = {
-    top: 'left',
-    bottom: 'right',
-    scrollHeight: 'scrollWidth',
-    clientHeight: 'clientWidth',
-    scrollTop: 'scrollLeft',
-    overflowY: 'overflowX',
-    minHeight: 'minWidth',
-    height: 'width',
-    maxHeight: 'maxWidth',
-    marginTop: 'marginLeft',
-} as const;
-
-const normalizeValue = (min: number, value: number, max = Infinity) => Math.max(Math.min(value, max), min);
-
-const getDiff = (value1: number, value2: number, step: number) => Math.ceil(Math.abs(value1 - value2) / step);
-
-const useIsomorphicLayoutEffect = IS_SSR ? useEffect : useLayoutEffect;
-
-const generateArray = <T,>(from: number, to: number, generate: (index: number) => T): T[] => {
-    const array = [];
-
-    for (let index = from; index < to; index++) {
-        array.push(generate(index));
-    }
-
-    return array;
-};
-
-const findElement = ({
-    fromElement,
-    toElement,
-    fromIndex,
-    asc = true,
-    compare,
-}: {
-    fromElement: Element;
-    toElement: Element;
-    fromIndex: number;
-    asc?: boolean;
-    compare: (element: Element, index: number) => boolean;
-}) => {
-    let index = fromIndex;
-    let element: Element | null = fromElement;
-
-    while (element && element !== toElement) {
-        if (compare(element, index)) {
-            return [element, index] as const;
-        }
-
-        if (asc) {
-            index++;
-            element = element.nextSibling as Element | null;
-        } else {
-            index--;
-            element = element.previousSibling as Element | null;
-        }
-    }
-
-    return [null, -1] as const;
-};
-
-const SCROLLABLE_REGEXP = /auto|scroll/gi;
-
-const findNearestScrollableElement = (
-    propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS,
-    node: Element | null,
-): Element | null => {
-    if (!node || node === document.body || node === document.documentElement) {
-        return document.documentElement;
-    }
-
-    const style = window.getComputedStyle(node);
-
-    if (SCROLLABLE_REGEXP.test(style[propName.overflowY]) || SCROLLABLE_REGEXP.test(style.overflow)) {
-        return node;
-    }
-
-    return findNearestScrollableElement(propName, node.parentNode as Element | null);
-};
-
-const getStyle = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X_AXIS, size: number, marginTop = 0) =>
-    ({
-        padding: 0,
-        margin: 0,
-        border: 'none',
-        visibility: 'hidden',
-        overflowAnchor: 'none',
-        [propName.minHeight]: size,
-        [propName.height]: size,
-        [propName.maxHeight]: size,
-        [propName.marginTop]: marginTop,
-    } as const);
+import { PROP_NAME_FOR_Y_AXIS, PROP_NAME_FOR_X_AXIS } from './contants';
+import { useIsomorphicLayoutEffect } from './useIsomorphicLayoutEffect';
+import { useAutoViewport } from './useAutoViewport';
+import { normalizeValue, getDiff, findElement } from './utils';
+import { useRenderSpacers } from './useRenderSpacers';
+import { useAutoItemHeightAndMargin } from './useAutoItemHeightAndMargin';
+import { useGetScrollPosition } from './useGetScrollPosition';
+import { useScrollToIndex } from './useScrollToIndex';
+import { useOnViewportIndexesChange } from './useOnViewportIndexesChange';
+import { useScrollThreshold } from './useScrollThreshold';
+import { useMarginTop } from './useMarginTop';
+import { useRenderItems } from './useRenderItems';
+import { useScrollCompensation } from './useScrollCompensation';
+import { useAnchor } from './useAnchor';
+import { useShift } from './useShift';
 
 export interface ScrollToIndexOptions {
     index?: number;
@@ -228,113 +109,95 @@ const ViewportListInner = <T,>(
     const propName = axis === 'y' ? PROP_NAME_FOR_Y_AXIS : PROP_NAME_FOR_X_AXIS;
     const withCount = typeof count === 'number';
     const maxIndex = (withCount ? count : items.length) - 1;
-    const [[estimatedItemHeight, estimatedItemMargin], setItemDimensions] = useState(() => [
-        normalizeValue(0, itemSize),
-        normalizeValue(-1, itemMargin),
+    const [indexes, setIndexes] = useState<[number, number]>([
+        initialIndex - initialPrerender,
+        initialIndex + initialPrerender,
     ]);
-    const itemHeightWithMargin = normalizeValue(0, estimatedItemHeight + estimatedItemMargin);
-    const overscanSize = normalizeValue(0, Math.ceil(overscan * itemHeightWithMargin));
-    const [indexes, setIndexes] = useState([initialIndex - initialPrerender, initialIndex + initialPrerender]);
-    const anchorElementRef = useRef<Element | null>(null);
-    const anchorIndexRef = useRef<number>(-1);
     const topSpacerRef = useRef<any>(null);
     const bottomSpacerRef = useRef<any>(null);
-    const ignoreOverflowAnchorRef = useRef(false);
-    const lastIndexesShiftRef = useRef(indexesShift);
     const cacheRef = useRef<number[]>([]);
-    const scrollToIndexOptionsRef = useRef<Required<ScrollToIndexOptions> | null>(
-        initialIndex >= 0
-            ? {
-                  index: initialIndex,
-                  alignToTop: initialAlignToTop,
-                  offset: initialOffset,
-                  delay: initialDelay,
-                  prerender: initialPrerender,
-              }
-            : null,
-    );
-    const scrollToIndexTimeoutIdRef = useRef<any>(null);
-    const marginTopRef = useRef(0);
-    const viewportIndexesRef = useRef<[number, number]>([-1, -1]);
-    const scrollTopRef = useRef<number | null>(null);
-    const [startIndex, endIndex] = useMemo(() => {
-        indexes[0] = normalizeValue(0, indexes[0], maxIndex);
-        indexes[1] = normalizeValue(indexes[0], indexes[1], maxIndex);
-
-        const shift = indexesShift - lastIndexesShiftRef.current;
-
-        lastIndexesShiftRef.current = indexesShift;
-
-        const topSpacer = topSpacerRef.current;
-
-        if (topSpacer && shift) {
-            indexes[0] = normalizeValue(0, indexes[0] + shift, maxIndex);
-            indexes[1] = normalizeValue(indexes[0], indexes[1] + shift, maxIndex);
-            anchorElementRef.current = topSpacer.nextSibling as Element;
-            anchorIndexRef.current = indexes[0];
-            ignoreOverflowAnchorRef.current = true;
-        }
-
-        return indexes;
-    }, [indexesShift, indexes, maxIndex]);
-
-    const topSpacerStyle = useMemo(
-        () =>
-            getStyle(
-                propName,
-                (withCache ? cacheRef.current : [])
-                    .slice(0, startIndex)
-                    .reduce((sum, next) => sum + (next - estimatedItemHeight), startIndex * itemHeightWithMargin),
-                marginTopRef.current,
-            ),
-        [propName, withCache, startIndex, itemHeightWithMargin, estimatedItemHeight],
-    );
-    const bottomSpacerStyle = useMemo(
-        () =>
-            getStyle(
-                propName,
-                (withCache ? cacheRef.current : [])
-                    .slice(endIndex + 1, maxIndex + 1)
-                    .reduce(
-                        (sum, next) => sum + (next - estimatedItemHeight),
-                        itemHeightWithMargin * (maxIndex - endIndex),
-                    ),
-            ),
-        [propName, withCache, endIndex, maxIndex, itemHeightWithMargin, estimatedItemHeight],
-    );
-    const getViewport = useMemo(() => {
-        let autoViewport: any = null;
-
-        return () => {
-            if (viewportRef) {
-                if (viewportRef.current === document.body) {
-                    return document.documentElement;
-                }
-
-                return viewportRef.current;
-            }
-
-            if (autoViewport && autoViewport.isConnected) {
-                return autoViewport;
-            }
-
-            const topSpacer = topSpacerRef.current;
-
-            if (!topSpacer) {
-                return null;
-            }
-
-            autoViewport = findNearestScrollableElement(propName, topSpacer.parentNode);
-
-            return autoViewport;
-        };
-    }, [propName, viewportRef]);
+    const [anchorRef, findAnchor] = useAnchor({
+        propName,
+        cacheRef,
+        getItemBoundingClientRect,
+    });
+    const [startIndex, endIndex] = useShift({
+        anchorRef,
+        indexes,
+        indexesShift,
+        maxIndex,
+        topSpacerRef,
+    });
+    const autoViewportRef = useAutoViewport({ viewportRef, axis, topSpacerRef });
+    const [estimatedItemHeight, estimatedItemMargin, autoItemHeightAndMarginFrame] = useAutoItemHeightAndMargin({
+        itemHeight: itemSize,
+        itemMargin,
+    });
+    const [isScrollingToIndex, initScrollToIndex, scrollToIndexFrame] = useScrollToIndex({
+        initialIndex,
+        initialAlignToTop,
+        initialOffset,
+        initialDelay,
+        initialPrerender,
+    });
+    const [onViewportIndexesChangeFrame] = useOnViewportIndexesChange({ onViewportIndexesChange });
+    const [scrollThresholdFrame] = useScrollThreshold({ scrollThreshold });
+    const [marginTopRef, addMarginTop, marginTopFrame] = useMarginTop({ propName, topSpacerRef });
+    const [renderTopSpacer, renderBottomSpacer] = useRenderSpacers({
+        propName,
+        topSpacerRef,
+        bottomSpacerRef,
+        cacheRef,
+        marginTopRef,
+        withCache,
+        itemHeight: estimatedItemHeight,
+        itemMargin: estimatedItemMargin,
+        maxIndex,
+        startIndex,
+        endIndex,
+        renderSpacer,
+    });
+    const itemHeightWithMargin = normalizeValue(0, estimatedItemHeight + estimatedItemMargin);
+    const overscanSize = normalizeValue(0, Math.ceil(overscan * itemHeightWithMargin));
     const mainFrameRef = useRef(() => {});
-    const getScrollPositionRef = useRef(() => ({ index: -1, offset: 0 }));
+    const getScrollPosition = useGetScrollPosition({
+        propName,
+        viewportRef: autoViewportRef,
+        topSpacerRef,
+        bottomSpacerRef,
+        startIndex,
+        getItemBoundingClientRect,
+    });
+    const renderItems = useRenderItems({
+        items,
+        count,
+        children,
+        startIndex,
+        endIndex,
+        withCount,
+    });
+
+    useScrollCompensation({
+        propName,
+        maxIndex,
+        cacheRef,
+        viewportRef: autoViewportRef,
+        topSpacerRef,
+        bottomSpacerRef,
+        getItemBoundingClientRect,
+        startIndex,
+        endIndex,
+        overflowAnchor,
+        withCache,
+        itemHeight: estimatedItemHeight,
+        itemMargin: estimatedItemMargin,
+        addMarginTop,
+        anchorRef,
+    });
 
     useIsomorphicLayoutEffect(() => {
         mainFrameRef.current = () => {
-            const viewport = getViewport();
+            const viewport = autoViewportRef.current;
             const topSpacer = topSpacerRef.current;
             const bottomSpacer = bottomSpacerRef.current;
 
@@ -360,120 +223,73 @@ const ViewportListInner = <T,>(
             };
 
             if (
-                (marginTopRef.current < 0 &&
-                    topSpacerRect[propName.top] - marginTopRef.current >= limitsWithOverscanSize[propName.top]) ||
-                (marginTopRef.current > 0 && topSpacerRect[propName.top] >= limitsWithOverscanSize[propName.top]) ||
-                (marginTopRef.current && scrollToIndexOptionsRef.current)
+                marginTopFrame({
+                    propName,
+                    viewport,
+                    topSpacer,
+                    topSpacerRect,
+                    limitsWithOverscanSize,
+                    isScrollingToIndex,
+                })
             ) {
-                topSpacer.style[propName.marginTop] = '0px';
-                viewport.style[propName.overflowY] = 'hidden';
-                viewport[propName.scrollTop] += -marginTopRef.current;
-                viewport.style[propName.overflowY] = '';
-                marginTopRef.current = 0;
-
                 return;
             }
 
-            if (estimatedItemHeight === 0 || estimatedItemMargin === -1) {
-                let itemsHeightSum = 0;
-
-                findElement({
-                    fromElement: topElement,
-                    toElement: bottomSpacer,
-                    fromIndex: startIndex,
-                    compare: (element) => {
-                        itemsHeightSum += getItemBoundingClientRect(element)[propName.height];
-
-                        return false;
-                    },
-                });
-
-                if (!itemsHeightSum) {
-                    return;
-                }
-
-                const renderedItemsCount = endIndex - startIndex + 1;
-                const nextItemHeight =
-                    estimatedItemHeight === 0 ? Math.ceil(itemsHeightSum / renderedItemsCount) : estimatedItemHeight;
-                const nextItemMargin =
-                    estimatedItemMargin === -1
-                        ? Math.ceil(
-                              (bottomSpacerRect[propName.top] - topSpacerRect[propName.bottom] - itemsHeightSum) /
-                                  renderedItemsCount,
-                          )
-                        : estimatedItemMargin;
-
-                setItemDimensions([nextItemHeight, nextItemMargin]);
-
+            if (
+                autoItemHeightAndMarginFrame({
+                    propName,
+                    topElement,
+                    topSpacerRect,
+                    bottomSpacerRect,
+                    bottomSpacer,
+                    startIndex,
+                    endIndex,
+                    getItemBoundingClientRect,
+                })
+            ) {
                 return;
             }
 
-            if (scrollToIndexTimeoutIdRef.current) {
+            if (
+                scrollToIndexFrame({
+                    propName,
+                    viewport,
+                    topElement,
+                    bottomSpacer,
+                    startIndex,
+                    endIndex,
+                    getItemBoundingClientRect,
+                    limits,
+                    setIndexes,
+                    maxIndex,
+                })
+            ) {
                 return;
             }
 
-            if (scrollToIndexOptionsRef.current) {
-                const targetIndex = normalizeValue(0, scrollToIndexOptionsRef.current.index, maxIndex);
-
-                if (targetIndex < startIndex || targetIndex > endIndex) {
-                    setIndexes([
-                        targetIndex - scrollToIndexOptionsRef.current.prerender,
-                        targetIndex + scrollToIndexOptionsRef.current.prerender,
-                    ]);
-
-                    return;
-                }
-
-                const [targetElement] = findElement({
-                    fromElement: topElement,
-                    toElement: bottomSpacer,
-                    fromIndex: startIndex,
-                    compare: (_, index) => index === targetIndex,
-                });
-
-                if (!targetElement) {
-                    return;
-                }
-
-                const { alignToTop, offset, delay } = scrollToIndexOptionsRef.current;
-
-                scrollToIndexOptionsRef.current = null;
-
-                const scrollToElement = () => {
-                    const elementRect = getItemBoundingClientRect(targetElement);
-                    const shift = alignToTop
-                        ? elementRect[propName.top] - limits[propName.top] + offset
-                        : elementRect[propName.bottom] -
-                          limits[propName.top] -
-                          viewport[propName.clientHeight] +
-                          offset;
-
-                    viewport[propName.scrollTop] += shift;
-                    scrollToIndexTimeoutIdRef.current = null;
-                };
-                const scrollToElementDelay = delay < 0 && SHOULD_DELAY_SCROLL ? 30 : delay;
-
-                if (scrollToElementDelay > 0) {
-                    scrollToIndexTimeoutIdRef.current = setTimeout(scrollToElement, scrollToElementDelay);
-
-                    return;
-                }
-
-                scrollToElement();
-
+            if (
+                scrollThresholdFrame({
+                    viewport,
+                })
+            ) {
                 return;
             }
 
-            if (scrollTopRef.current === null) {
-                scrollTopRef.current = viewport.scrollTop;
-            } else if (scrollTopRef.current !== viewport.scrollTop) {
-                const diff = Math.abs(viewport.scrollTop - scrollTopRef.current);
-
-                scrollTopRef.current = viewport.scrollTop;
-
-                if (scrollThreshold > 0 && diff > scrollThreshold) {
-                    return;
-                }
+            if (
+                onViewportIndexesChangeFrame({
+                    propName,
+                    viewport,
+                    topElement,
+                    bottomElement,
+                    topSpacer,
+                    bottomSpacer,
+                    startIndex,
+                    endIndex,
+                    getItemBoundingClientRect,
+                    limits,
+                })
+            ) {
+                return;
             }
 
             const topSecondElement = topElement === bottomSpacer ? bottomSpacer : (topElement.nextSibling as Element);
@@ -578,39 +394,6 @@ const ViewportListInner = <T,>(
                 }
             }
 
-            if (onViewportIndexesChange) {
-                let [, startViewportIndex] = findElement({
-                    fromElement: topElement,
-                    toElement: bottomSpacer,
-                    fromIndex: startIndex,
-                    compare: (element) => getItemBoundingClientRect(element)[propName.bottom] > limits[propName.top],
-                });
-
-                if (startViewportIndex === -1) {
-                    startViewportIndex = startIndex;
-                }
-
-                let [, endViewportIndex] = findElement({
-                    fromElement: bottomElement,
-                    toElement: topSpacer,
-                    fromIndex: endIndex,
-                    asc: false,
-                    compare: (element) => getItemBoundingClientRect(element)[propName.top] < limits[propName.bottom],
-                });
-
-                if (endViewportIndex === -1) {
-                    endViewportIndex = endIndex;
-                }
-
-                if (
-                    startViewportIndex !== viewportIndexesRef.current[0] ||
-                    endViewportIndex !== viewportIndexesRef.current[1]
-                ) {
-                    viewportIndexesRef.current = [startViewportIndex, endViewportIndex];
-                    onViewportIndexesChange(viewportIndexesRef.current);
-                }
-            }
-
             nextStartIndex = normalizeValue(0, nextStartIndex, maxIndex);
             nextEndIndex = normalizeValue(nextStartIndex, nextEndIndex, maxIndex);
 
@@ -619,167 +402,21 @@ const ViewportListInner = <T,>(
             }
 
             if (nextStartIndex !== startIndex) {
-                if (startIndex >= nextStartIndex) {
-                    anchorElementRef.current = topElement;
-                    anchorIndexRef.current = startIndex;
-                } else {
-                    const [anchorElement, anchorElementIndex] = findElement({
-                        fromElement: topElement,
-                        toElement: bottomSpacer,
-                        fromIndex: startIndex,
-                        compare: (element, index) => {
-                            if (index === nextStartIndex) {
-                                return true;
-                            }
-
-                            const elementRect = getItemBoundingClientRect(element);
-
-                            if (elementRect[propName.height] !== estimatedItemHeight) {
-                                cacheRef.current[index] = elementRect[propName.height];
-                            }
-
-                            return false;
-                        },
-                    });
-
-                    if (anchorElement) {
-                        anchorElementRef.current = anchorElement;
-                        anchorIndexRef.current = anchorElementIndex;
-                    } else {
-                        anchorElementRef.current = bottomElement;
-                        anchorIndexRef.current = endIndex;
-                    }
-                }
+                anchorRef.current = findAnchor({
+                    bottomSpacer,
+                    topElement,
+                    bottomElement,
+                    nextStartIndex,
+                    startIndex,
+                    endIndex,
+                    itemHeight: estimatedItemHeight,
+                });
             }
 
             setIndexes([nextStartIndex, nextEndIndex]);
         };
-        getScrollPositionRef.current = () => {
-            const viewport = getViewport();
-            const topSpacer = topSpacerRef.current;
-            const bottomSpacer = bottomSpacerRef.current;
-
-            let scrollIndex = -1;
-            let scrollOffset = 0;
-
-            if (!viewport || !topSpacer || !bottomSpacer) {
-                return { index: scrollIndex, offset: scrollOffset };
-            }
-
-            const topElement = topSpacer.nextSibling as Element;
-            const viewportRect = viewport.getBoundingClientRect();
-            const limits = {
-                [propName.top]: viewport === document.documentElement ? 0 : viewportRect[propName.top],
-                [propName.bottom]:
-                    viewport === document.documentElement
-                        ? document.documentElement[propName.clientHeight]
-                        : viewportRect[propName.bottom],
-            };
-
-            findElement({
-                fromElement: topElement,
-                toElement: bottomSpacer,
-                fromIndex: startIndex,
-                compare: (element, index) => {
-                    const rect = getItemBoundingClientRect(element);
-
-                    scrollIndex = index;
-                    scrollOffset = limits[propName.top] - rect[propName.top];
-
-                    return rect[propName.bottom] > limits[propName.top];
-                },
-            });
-
-            return { index: scrollIndex, offset: scrollOffset };
-        };
     });
 
-    let anchorHeightOnRender: number | undefined;
-
-    if (anchorElementRef.current && getViewport() && topSpacerRef.current) {
-        anchorHeightOnRender =
-            getItemBoundingClientRect(anchorElementRef.current)[propName.top] -
-            (getViewport() === document.documentElement ? 0 : getViewport().getBoundingClientRect()[propName.top]);
-    }
-
-    useIsomorphicLayoutEffect(() => {
-        anchorElementRef.current = null;
-
-        const anchorIndex = anchorIndexRef.current;
-        const ignoreOverflowAnchor = ignoreOverflowAnchorRef.current;
-
-        anchorIndexRef.current = -1;
-        ignoreOverflowAnchorRef.current = false;
-
-        const viewport = getViewport();
-        const topSpacer = topSpacerRef.current;
-        const bottomSpacer = bottomSpacerRef.current;
-
-        if (
-            anchorIndex === -1 ||
-            !viewport ||
-            !topSpacer ||
-            !bottomSpacer ||
-            anchorHeightOnRender === undefined ||
-            (IS_OVERFLOW_ANCHOR_SUPPORTED && overflowAnchor !== 'none' && !ignoreOverflowAnchor)
-        ) {
-            return;
-        }
-
-        let top = null;
-
-        if (anchorIndex >= startIndex && anchorIndex <= endIndex) {
-            const [anchorElement] = findElement({
-                fromElement: topSpacer.nextSibling as Element,
-                toElement: bottomSpacer,
-                fromIndex: startIndex,
-                compare: (_, index) => index === anchorIndex,
-            });
-
-            if (anchorElement) {
-                top = getItemBoundingClientRect(anchorElement)[propName.top];
-            }
-        } else {
-            if (anchorIndex < startIndex) {
-                top =
-                    topSpacer.getBoundingClientRect()[propName.top] +
-                    (withCache ? cacheRef.current : [])
-                        .slice(0, anchorIndex)
-                        .reduce((sum, next) => sum + (next - estimatedItemHeight), anchorIndex * itemHeightWithMargin);
-            } else if (anchorIndex <= maxIndex) {
-                top =
-                    bottomSpacer.getBoundingClientRect()[propName.top] +
-                    (withCache ? cacheRef.current : [])
-                        .slice(endIndex + 1, anchorIndex)
-                        .reduce(
-                            (sum, next) => sum + (next - estimatedItemHeight),
-                            itemHeightWithMargin * (anchorIndex - 1 - endIndex),
-                        );
-            }
-        }
-
-        if (top === null) {
-            return;
-        }
-
-        const offset =
-            top -
-            (viewport === document.documentElement ? 0 : viewport.getBoundingClientRect()[propName.top]) -
-            anchorHeightOnRender;
-
-        if (!offset) {
-            return;
-        }
-
-        if (IS_TOUCH_DEVICE) {
-            marginTopRef.current -= offset;
-            topSpacer.style[propName.marginTop] = `${marginTopRef.current}px`;
-
-            return;
-        }
-
-        viewport[propName.scrollTop] += offset;
-    }, [startIndex]);
     useIsomorphicLayoutEffect(() => {
         let frameId: number;
         const frame = () => {
@@ -791,34 +428,22 @@ const ViewportListInner = <T,>(
 
         return () => {
             cancelAnimationFrame(frameId);
-
-            if (scrollToIndexTimeoutIdRef.current) {
-                clearTimeout(scrollToIndexTimeoutIdRef.current);
-            }
         };
     }, []);
     useImperativeHandle(
         ref,
         () => ({
-            scrollToIndex: ({ index = -1, alignToTop = true, offset = 0, delay = -1, prerender = 0 }) => {
-                scrollToIndexOptionsRef.current = { index, alignToTop, offset, delay, prerender };
-                mainFrameRef.current();
-            },
-            getScrollPosition: () => getScrollPositionRef.current(),
+            scrollToIndex: initScrollToIndex(() => mainFrameRef.current()),
+            getScrollPosition,
         }),
-        [],
+        [getScrollPosition, initScrollToIndex],
     );
 
     return (
         <Fragment>
-            {renderSpacer({ ref: topSpacerRef, style: topSpacerStyle, type: 'top' })}
-            {(!!count || !!items.length) &&
-                generateArray(
-                    startIndex,
-                    endIndex + 1,
-                    withCount ? children : (index) => children(items[index], index, items),
-                )}
-            {renderSpacer({ ref: bottomSpacerRef, style: bottomSpacerStyle, type: 'bottom' })}
+            {renderTopSpacer}
+            {renderItems}
+            {renderBottomSpacer}
         </Fragment>
     );
 };
