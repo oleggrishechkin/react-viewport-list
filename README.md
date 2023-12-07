@@ -158,7 +158,7 @@ getScrollPosition returns an object with scroll position: `{ index: number, offs
 **Returns**
 
 | name     | type   | description                                                                                           |
-| -------- | ------ |-------------------------------------------------------------------------------------------------------|
+| -------- | ------ | ----------------------------------------------------------------------------------------------------- |
 | `index`  | number | Item index for scroll.                                                                                |
 | `offset` | number | Offset after `scrollIntoView ` call.<br>This value will be added to the scroll after scroll to index. |
 

@@ -142,7 +142,7 @@ const getStyle = (propName: typeof PROP_NAME_FOR_Y_AXIS | typeof PROP_NAME_FOR_X
         [propName.height]: size,
         [propName.maxHeight]: size,
         [propName.marginTop]: marginTop,
-    } as const);
+    }) as const;
 
 export interface ScrollToIndexOptions {
     index?: number;
@@ -824,9 +824,9 @@ const ViewportListInner = <T,>(
 };
 
 export interface ViewportList {
-    <T>(props: ViewportListPropsWithItems<T> & { ref?: ForwardedRef<ViewportListRef> }): ReturnType<
-        typeof ViewportListInner
-    >;
+    <T>(
+        props: ViewportListPropsWithItems<T> & { ref?: ForwardedRef<ViewportListRef> },
+    ): ReturnType<typeof ViewportListInner>;
     (props: ViewportListPropsWithCount & { ref?: ForwardedRef<ViewportListRef> }): ReturnType<typeof ViewportListInner>;
 }
 
